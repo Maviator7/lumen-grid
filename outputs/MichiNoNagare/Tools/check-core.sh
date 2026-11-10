@@ -40,3 +40,6 @@ python3 "$MICHI_PROJECT_DIR/Tools/check-input-safety.py"
 "$MICHI_PROJECT_DIR/Tools/check-power-inspection.sh"
 
 "$MICHI_PROJECT_DIR/Tools/check-expansion-dialog.sh"
+
+node "$MICHI_PROJECT_DIR/Tools/check-web-save.cjs"
+python3 "$MICHI_PROJECT_DIR/Tools/check-server-save.py"

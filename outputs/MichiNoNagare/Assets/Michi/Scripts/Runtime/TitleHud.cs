@@ -15,13 +15,14 @@ namespace Michi.Runtime
             Text(x+4,y+129,680,42,"都市の鼓動を、つなげ。",new GUIStyle(headline){fontSize=24},White);
             Text(x+4,y+179,640,64,"電力とデータの流れを設計し、\n夜の都市をどこまでも広げていく。",wrap,Muted);
             float menuY=y+285;
-            bool locked=game.MapPrompt||game.TitleGuideConfirm;GUI.enabled=!locked;
+            bool locked=game.MapPrompt||game.SavePrompt||game.TitleGuideConfirm;GUI.enabled=!locked;
             if(game.HasSession){if(TitleChoice(x,menuY,"01","つづける","CONTINUE  /  ENTER",true))game.ContinueCity();menuY+=76;}
             if(TitleChoice(x,menuY,game.HasSession?"02":"01","新しい都市","NEW NETWORK  /  N",!game.HasSession))game.NewCityFromTitle();menuY+=76;
             if(TitleChoice(x,menuY,game.HasSession?"03":"02","操作ガイド","LEARN THE SYSTEM  /  H",false))game.GuideFromTitle();
+            menuY+=76;if(TitleChoice(x,menuY,game.HasSession?"04":"03","保存・バックアップ","SAVE / EXPORT / IMPORT",false))game.OpenSaveMenu();
             GUI.enabled=true;
             Line(new Vector2(x,h-74),new Vector2(w-70,h-74),new Color(Cyan.r,Cyan.g,Cyan.b,.25f));
-            Text(x,h-59,800,30,!string.IsNullOrEmpty(game.SaveError)?game.SaveError:game.HasSession?"本編は30秒ごとに自動保存 / 最終保存 "+game.LastSavedAt:"電力を届ける。データを流す。混雑をほどく。",tiny);
+            Text(x,h-59,800,30,!string.IsNullOrEmpty(game.SaveError)?game.SaveError:game.HasSession?"本編は10秒ごとに自動保存 / 最終保存 "+game.LastSavedAt:"電力を届ける。データを流す。混雑をほどく。",tiny);
             Text(w-260,h-59,200,30,"LUMEN LAB  /  PROTOTYPE",tiny,Cyan);
             if(game.HasSession&&!locked){float rx=w-330;Text(rx,h*.37f,260,28,"CURRENT NETWORK",tiny,Cyan);Text(rx,h*.37f+34,260,44,game.Simulation.Map.Generated?"SEED "+game.Simulation.Map.Seed:"操作ガイド",headline);Text(rx,h*.37f+91,260,70,"稼働時間  "+game.Simulation.Time.ToString("0")+" 秒\nメニュー表示中は時間が止まります。",wrap);}
             if(game.HasSession&&!game.Simulation.Continuous&&game.HasStoredCity&&!locked){if(Button(new Rect(w-360,h*.37f+210,290,50),"保存した都市へ / L")){if(game.LoadSavedCity())game.ContinueCity();}}

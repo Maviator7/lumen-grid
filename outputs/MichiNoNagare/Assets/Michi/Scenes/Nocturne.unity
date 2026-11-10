@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &310538155
+--- !u!1 &907757976
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,8 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 310538157}
-  - component: {fileID: 310538156}
+  - component: {fileID: 907757978}
+  - component: {fileID: 907757977}
   m_Layer: 0
   m_Name: Lumen Network
   m_TagString: Untagged
@@ -136,18 +136,61 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &310538156
+--- !u!114 &907757977
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 310538155}
+  m_GameObject: {fileID: 907757976}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d8f477c334ec946c6b02deb9481da6a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Michi.Runtime.NetworkGame
+  PCBackupStatus: 
+  SavePrompt: 0
+  ImportCandidate:
+    Version: 0
+    SavedAt: 
+    Network:
+      RulesVersion: 0
+      Version: 0
+      Generator: 0
+      Seed: 0
+      ExpansionCount: 0
+      Successful: 0
+      Expired: 0
+      Serial: 0
+      RecentDelivered: 0
+      Time: 0
+      DelaySum: 0
+      PowerIntegral: 0
+      SpawnClock: 0
+      ExpansionCable: 0
+      QualityClock: 0
+      StableSeconds: 0
+      RecentPower: 0
+      RecentData: 0
+      RecentLatency: 0
+      Nodes: []
+      Links: []
+      Packets: []
+      NodeCredit: []
+      SourceCredit: []
+      RequestCredit: []
+      Waiting: []
+      Sectors: []
+      Quality: []
+    Angle: 0
+    Zoom: 0
+    PanX: 0
+    PanZ: 0
+    TopDown: 0
+    Paused: 0
+    Speed: 0
+    Tool: 0
+  SaveMenuMessage: 
   LastSavedAt: 
   SaveError: 
   GuidePrompt: 0
@@ -162,13 +205,13 @@ MonoBehaviour:
   Message: 
   MessageUntil: 0
   TitleGuideConfirm: 0
---- !u!4 &310538157
+--- !u!4 &907757978
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 310538155}
+  m_GameObject: {fileID: 907757976}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -181,4 +224,4 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 310538157}
+  - {fileID: 907757978}

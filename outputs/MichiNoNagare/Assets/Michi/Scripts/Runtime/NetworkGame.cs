@@ -12,12 +12,12 @@ namespace Michi.Runtime
         public int Tool,Speed=2,SelectedLink=-1;public bool Paused=true;public string Message="";public float MessageUntil;
         double accumulator;int ignoreConfirmFrame=-1;
         readonly PointerGesture pointer=new PointerGesture();Vector3 dragAnchor;
-        void OnApplicationFocus(bool focused){if(!focused){pointer.Cancel();if(View!=null)View.StopRotation();SaveCity(false);}}
+        void OnApplicationFocus(bool focused){if(!focused){pointer.Cancel();if(View!=null)View.StopRotation();if(!TitleScreen&&!SavePrompt)SaveCity(false);}}
         void Awake(){Simulation=new NetworkSimulation(CityMap.Generate(291026),true);Tutorial=new NetworkTutorial();Paused=true;Tool=4;View=gameObject.AddComponent<NetworkCityView>();View.Initialize(Simulation);Simulation.LoadSolution();View.RefreshLinks();gameObject.AddComponent<NetworkHud>().Initialize(this);LoadSavedCity();}
         public void Notify(string message){Message=message;MessageUntil=Time.unscaledTime+3;}
         public void StartTest(){if(ResetPrompt)return;if(Time.frameCount<=ignoreConfirmFrame)return;if(GuidePrompt||MapPrompt||!Tutorial.AllowsLaunch){Notify("左のガイドに沿って、まず回線をつないでみよう。");return;}Simulation.Start();View.ClearPackets();View.PendingNode=-1;Paused=false;accumulator=0;}
         public void Redesign(){if(Simulation.Continuous){Paused=!Paused;return;}Simulation.ReturnToDesign();View.ClearPackets();View.RefreshLinks();Paused=true;accumulator=0;}
-        public void Undo(){if(Tutorial.Active||GuidePrompt){Notify("練習中はガイドで示した操作を試してみよう。");return;}if(Simulation.Undo()){View.RefreshLinks();View.PendingNode=-1;Notify("ひとつ前の回線構成へ戻しました");}}
+        public void Undo(){if(Tutorial.Active||GuidePrompt){Notify("練習中はガイドで示した操作を試してみよう。");return;}if(Simulation.Undo()){View.RefreshLinks();View.PendingNode=-1;Notify("ひとつ前の回線構成へ戻しました");SaveCity(false);}}
         public void SelectTool(int tool){if(GuidePrompt||!Tutorial.AllowsTool(tool)){Notify("いまは左のガイドで示されたツールを選んでね。");return;}Tool=tool;View.PendingNode=-1;Tutorial.Tick(Simulation,Tool,View.PendingNode,View.SelectedNode);}
         public void NextTutorial(){if(Tutorial.Step==13){RequestCity();return;}Tutorial.Next();if(Tutorial.Step==5)Tool=4;}
         public void EndTutorial(){if(Tutorial.Step==13){NextTutorial();return;}Tutorial.Skip();GuidePrompt=false;View.PendingNode=-1;}
@@ -33,16 +33,17 @@ namespace Michi.Runtime
         LinkKind Kind {get{return Tool==1?LinkKind.PowerOnly:Tool==2?LinkKind.DataOnly:LinkKind.Shared;}}
         void Edited(NetworkEditError error)
         {
-            View.RefreshLinks();switch(error){case NetworkEditError.TooLong:Notify("距離が長すぎます。11.5以内の中継ハブを経由してください。");break;case NetworkEditError.CableBudget:Notify(Simulation.ModernRules?"建設資材が足りません。共用へ戻すと専用の追加費用を回収できます。":"回線長の上限です。不要な回線を回収してください。");break;case NetworkEditError.DedicatedBudget:Notify("専用回線は送電＋通信で合計"+Simulation.AvailableDedicated+"本まで。共用へ戻すか撤去で回収。");break;case NetworkEditError.Obstacle:Notify("建設不可エリアを横切っています。別の中継施設を経由してください。");break;case NetworkEditError.BridgeBudget:Notify("橋の枠が足りません。川を渡る回線を撤去すると回収できます。");break;case NetworkEditError.None:Notify("回線を更新。電力とデータの経路を確認しよう。");break;}
+            View.RefreshLinks();if(error==NetworkEditError.None)SaveCity(false);switch(error){case NetworkEditError.TooLong:Notify("距離が長すぎます。11.5以内の中継ハブを経由してください。");break;case NetworkEditError.CableBudget:Notify(Simulation.ModernRules?"建設資材が足りません。共用へ戻すと専用の追加費用を回収できます。":"回線長の上限です。不要な回線を回収してください。");break;case NetworkEditError.DedicatedBudget:Notify("専用回線は送電＋通信で合計"+Simulation.AvailableDedicated+"本まで。共用へ戻すか撤去で回収。");break;case NetworkEditError.Obstacle:Notify("建設不可エリアを横切っています。別の中継施設を経由してください。");break;case NetworkEditError.BridgeBudget:Notify("橋の枠が足りません。川を渡る回線を撤去すると回収できます。");break;case NetworkEditError.None:Notify("回線を更新。電力とデータの経路を確認しよう。");break;}
         }
         void Update()
         {
             UpdateAutoSave();if(TitleScreen){UpdateTitle();return;}
-            bool canRotate=Application.isFocused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!ExpansionPrompt;
+            bool canRotate=Application.isFocused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt;
             if(canRotate)View.TickRotation((Input.GetKey(KeyCode.E)?1:0)-(Input.GetKey(KeyCode.Q)?1:0),Mathf.Min(Time.unscaledDeltaTime,.1f));else View.StopRotation();
-            if(Simulation.Phase==RoundPhase.Running&&!Paused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!ExpansionPrompt){accumulator+=Time.unscaledDeltaTime*Speed;int steps=0;while(accumulator>=1.0/60&&Simulation.Phase==RoundPhase.Running&&steps++<16){Simulation.Step(1.0/60);accumulator-=1.0/60;}if(Simulation.Phase==RoundPhase.Result){Paused=true;accumulator=0;}}
+            if(Simulation.Phase==RoundPhase.Running&&!Paused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt){accumulator+=Time.unscaledDeltaTime*Speed;int steps=0;while(accumulator>=1.0/60&&Simulation.Phase==RoundPhase.Running&&steps++<16){Simulation.Step(1.0/60);accumulator-=1.0/60;}if(Simulation.Phase==RoundPhase.Result){Paused=true;accumulator=0;}}
             Tutorial.Tick(Simulation,Tool,View.PendingNode,View.SelectedNode);
             View.Sync();UpdatePlanningPreview();
+            if(SavePrompt){if(Input.GetKeyDown(KeyCode.Escape))CloseSaveMenu();return;}
             if(ExpansionPrompt){if(Input.GetKeyDown(KeyCode.Escape))Expansion.Cancel();else if(Input.GetKeyDown(KeyCode.Alpha1))ConfirmExpansion(true);else if(Input.GetKeyDown(KeyCode.Alpha2))ConfirmExpansion(false);return;}
             if(ResetPrompt){if(Input.GetKeyDown(KeyCode.Escape))CancelReset();return;}
             if(MapPrompt){if(Input.GetKeyDown(KeyCode.Escape))MapPrompt=false;return;}
@@ -61,7 +62,7 @@ namespace Michi.Runtime
             if(Input.GetKeyDown(KeyCode.V))View.FrameCity();
             if(Time.frameCount<=ignoreConfirmFrame){pointer.Cancel();return;}
             var mouse=new Vector2(Input.mousePosition.x,Screen.height-Input.mousePosition.y);
-            bool overUI=GuidePrompt||MapPrompt||ResetPrompt||ExpansionPrompt||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
+            bool overUI=GuidePrompt||MapPrompt||ResetPrompt||SavePrompt||ExpansionPrompt||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
             if(Input.GetMouseButtonDown(0)&&!overUI&&View.GroundPoint(Input.mousePosition,out dragAnchor))pointer.Begin(mouse.x,mouse.y,8*Mathf.Min(Screen.width/1440f,Screen.height/900f));
             if(pointer.Active&&Input.GetMouseButton(0)){pointer.Move(mouse.x,mouse.y);if(pointer.Dragging){View.PendingNode=-1;View.DragMap(dragAnchor,Input.mousePosition);}}
             bool click=false;if(Input.GetMouseButtonUp(0))click=pointer.End(mouse.x,mouse.y);

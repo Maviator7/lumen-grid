@@ -10,7 +10,7 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 ## 構成
 - WebBuildはunityroom指定のGzip/展開フォールバック無効のリリースを生成。Assets/Michi/link.xmlはCreatePrimitiveの型を保持する。消すとIL2CPPで都市生成が失敗する。
 - OrbitRotationは実時間の指数追従でQ/E長押しと回転ボタンを補間。Angleの設定は保留回転を破棄。モーダル・タイトル・フォーカス喪失時に回転を止める。
-- TitleGame/TitleHudが起動メニューを担当。既存セッションのタイトル中は入力・計算を停止し、Mで復帰。Continueは本編の永続セーブを復元。Core/NetworkSaveが計算状態、CitySaveGame/CitySaveStoreが1枠のJSON保存・バックアップ・30秒自動保存を担当。操作ガイドは本編の保存を上書きしない。
+- TitleGame/TitleHudが起動メニューを担当。既存セッションのタイトル中は入力・計算を停止し、Mで復帰。Continueは本編の永続セーブを復元。Core/NetworkSaveが計算状態、CitySaveGame/CitySaveStoreが1枠のJSON保存・バックアップ・10秒自動保存と配線編集後保存を担当。操作ガイドは本編の保存を上書きしない。
 - CityMapはv1の整数乱数で都市を生成。制約を満たす参照配線を実シミュレーションで検証する。生成器変更時はシード再現性とバージョンを扱う。
 - ロゴの編集元はAssets/Michi/BrandingSourceのSVG。Resources/BrandingのPNGをHUDとビルド用アイコンに使用。ProjectTools.ConfigureBrandingがインポート設定とアイコンを適用。
 - 新しい都市へ切り替える際はView.Rebuildで旧シーンルート・生成マテリアルを回収する。
@@ -46,3 +46,9 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 ## Git
 - リポジトリのルートはこのプロジェクトの2階層上（new-chat）。mainが初期ブランチ。Unityソース・設定・ツール・仕様を管理し、外側のworkやビルド・画像・復旧データは除外。
 - Assetsのファイルと.metaは必ず一緒に変更する。生成キャッシュや検証日時だけのDocumentation/Verification.txtはコミットしない。ブラウザのセーブをGitに混ぜない。
+
+## セーブの耐久性
+- WebはCitySave.jslibでlocalStorageの固定キーに主保存＋バックアップを同期保存し、読み返し一致後に成功表示。旧PlayerPrefsは読み込み互換を維持。セーブ形式はCitySaveStore.Encode/DecodeのSHA-256付きJSON。
+- ローカルserve-web.pyは同一オリジンの/api/city-saveで検証済みJSONをwork/city-saves/<port>へ保存。ビルドと独立し、起動時にブラウザ保存が消えてもPCバックアップを利用する。テストは別ポートを使い、本編8766のバックアップへ混ぜない。バックアップJSONをGitに追加しない。
+- タイトルとフッターのセーブ管理からファイル書き出し・読み込み。読み込みは内容確認後に明示復元。タイトル中・読み込み確認中の自動保存を避ける。
+- 検証: Tools/check-web-save.cjs、Tools/check-server-save.py、Editor/SaveDurabilityChecks.cs。保存の確認は実際のChromeのリロードまで行い、別ブラウザの結果だけで本編復旧と呼ばない。

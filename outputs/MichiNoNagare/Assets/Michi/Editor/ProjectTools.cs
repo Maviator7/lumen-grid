@@ -9,7 +9,7 @@ using Michi.Runtime;
 public static class ProjectTools
 {
     [MenuItem("Michi/Validate core")]
-    public static void Validate(){string result=CoreChecks.Run()+"\n"+NetworkChecks.Run()+"\n"+PointerChecks.Run()+"\n"+TutorialChecks.Run()+"\n"+SeededCityChecks.Run()+"\n"+ResetChecks.Run()+"\n"+Michi.Checks.ContinuousCityChecks.Run()+"\n"+Michi.Checks.DataBalanceChecks.Run()+"\n"+Michi.Checks.SaveChecks.Run()+"\n"+Michi.Checks.SaveStoreChecks.Run()+"\n"+Michi.Checks.OrbitChecks.Run()+"\n"+Michi.Checks.StrategyChecks.Run()+"\n"+Michi.Checks.PowerInspectionChecks.Run()+"\n"+Michi.Checks.ExpansionDialogChecks.Run();Debug.Log(result);Directory.CreateDirectory("Documentation");File.WriteAllText("Documentation/Verification.txt",DateTime.UtcNow.ToString("u")+"\n"+result+"\n");}
+    public static void Validate(){string result=CoreChecks.Run()+"\n"+NetworkChecks.Run()+"\n"+PointerChecks.Run()+"\n"+TutorialChecks.Run()+"\n"+SeededCityChecks.Run()+"\n"+ResetChecks.Run()+"\n"+Michi.Checks.ContinuousCityChecks.Run()+"\n"+Michi.Checks.DataBalanceChecks.Run()+"\n"+Michi.Checks.SaveChecks.Run()+"\n"+Michi.Checks.SaveStoreChecks.Run()+"\n"+Michi.Checks.OrbitChecks.Run()+"\n"+Michi.Checks.StrategyChecks.Run()+"\n"+Michi.Checks.PowerInspectionChecks.Run()+"\n"+Michi.Checks.ExpansionDialogChecks.Run()+"\n"+Michi.Checks.SaveDurabilityChecks.Run();Debug.Log(result);Directory.CreateDirectory("Documentation");File.WriteAllText("Documentation/Verification.txt",DateTime.UtcNow.ToString("u")+"\n"+result+"\n");}
     [MenuItem("Michi/Create playable scene")]
     public static void CreateScene()
     {

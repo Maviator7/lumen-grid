@@ -12,6 +12,7 @@ namespace Michi.Runtime
         public void GuideFromTitle(){if(HasSession)TitleGuideConfirm=true;else RestartTutorial();}
         void UpdateTitle()
         {
+            if(SavePrompt){if(Input.GetKeyDown(KeyCode.Escape))CloseSaveMenu();return;}
             // Only the disposable attract city runs. An existing player's city stays frozen.
             if(!HasSession){Simulation.Step(System.Math.Min(Time.unscaledDeltaTime,.05f));View.Angle=-18+Mathf.Sin(Time.unscaledTime*.065f)*8;View.UpdateCamera();}
             View.Sync();
