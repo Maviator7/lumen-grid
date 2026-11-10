@@ -1,0 +1,15 @@
+# Only the maintained Unity project belongs in source control.
+# Keep playable builds, screenshots, prototypes and recovery data locally.
+/outputs/*
+!/outputs/MichiNoNagare/
+/work/
+
+# Machine-local and sensitive configuration.
+.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+__pycache__/
+*.py[cod]

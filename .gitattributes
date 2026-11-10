@@ -1,0 +1,25 @@
+* text=auto
+
+# Stable line endings for source, tools and Unity YAML assets.
+*.cs text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.svg text eol=lf
+*.shader text eol=lf
+*.meta text eol=lf whitespace=-blank-at-eol
+*.unity text eol=lf whitespace=-blank-at-eol
+*.prefab text eol=lf whitespace=-blank-at-eol
+*.mat text eol=lf whitespace=-blank-at-eol
+*.asset text eol=lf whitespace=-blank-at-eol
+
+# Imported media are binary; do not attempt text merges.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.otf binary
+*.ttf binary
+*.wav binary
+*.mp3 binary
