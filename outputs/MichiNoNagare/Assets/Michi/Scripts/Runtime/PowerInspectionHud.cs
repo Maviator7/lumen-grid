@@ -23,7 +23,7 @@ namespace Michi.Runtime
             if(info.Sources.Count==0)return "現在の供給元：なし";
             var text=new StringBuilder(info.SourcesPassThroughSelection?"実際の供給元：":"接続先の区画の供給元：");
             for(int i=0;i<info.Sources.Count&&i<2;i++){var source=info.Sources[i];text.Append('\n').Append(RoleName(game.Simulation.Nodes[source.Source])).Append("  ").Append(source.Amount.ToString("0.0")).Append(" MW");}
-            if(info.Sources.Count>2)text.Append("\nほか ").Append(info.Sources.Count-2).Append(" 発電所");
+            if(info.Sources.Count>2)text.Append("\nほか ").Append(info.Sources.Count-2).Append(" 供給設備");
             return text.ToString();
         }
         string RelayPowerDetails(GridNode node)

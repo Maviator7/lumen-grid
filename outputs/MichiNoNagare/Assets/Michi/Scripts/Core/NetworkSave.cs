@@ -12,6 +12,7 @@ namespace Michi.Core
         public int Version,Generator,Seed,ExpansionCount,Successful,Expired,Serial,RecentDelivered;
         public double Time,DelaySum,PowerIntegral,SpawnClock,ExpansionCable,QualityClock,StableSeconds,RecentPower,RecentData,RecentLatency;
         public GridNode[] Nodes;public GridLink[] Links;public DataPacket[] Packets;public double[] NodeCredit,SourceCredit,RequestCredit;
+        public SavedBattery[] Batteries;
         public SavedRequest[] Waiting;public SavedSector[] Sectors;public SavedQuality[] Quality;
     }
     public sealed partial class NetworkSimulation
@@ -21,6 +22,7 @@ namespace Michi.Core
             if(!Continuous||!Map.Generated)throw new InvalidOperationException("操作ガイドは本編のセーブに上書きしません。");
             var state=new NetworkSave{RulesVersion=RulesVersion,Version=1,Generator=CityMap.GeneratorVersion,Seed=Map.Seed,ExpansionCount=ExpansionCount,Successful=Successful,Expired=Expired,Serial=serial,RecentDelivered=RecentDelivered,Time=Time,DelaySum=delaySum,PowerIntegral=powerIntegral,SpawnClock=spawnClock,ExpansionCable=expansionCable,QualityClock=qualityClock,StableSeconds=StableSeconds,RecentPower=RecentPower,RecentData=RecentData,RecentLatency=RecentLatency,NodeCredit=(double[])nodeCredit.Clone(),Nodes=new GridNode[Nodes.Length],SourceCredit=new double[Nodes.Length],RequestCredit=new double[Nodes.Length]};
             for(int i=0;i<Nodes.Length;i++){state.Nodes[i]=Nodes[i].SaveCopy();state.SourceCredit[i]=Nodes[i].SourceCredit;state.RequestCredit[i]=Nodes[i].RequestCredit;}
+            var stored=new List<SavedBattery>();foreach(var b in batteries)stored.Add(b.Copy());state.Batteries=stored.ToArray();
             var links=new List<GridLink>();foreach(var l in Links.Values)links.Add(l.SaveCopy());state.Links=links.ToArray();
             var packets=new List<DataPacket>();foreach(var p in Packets)packets.Add(p.SaveCopy());state.Packets=packets.ToArray();
             var requests=new List<SavedRequest>();foreach(var r in waitingData)requests.Add(new SavedRequest{Destination=r.Destination,Born=r.Born});state.Waiting=requests.ToArray();
@@ -54,6 +56,7 @@ namespace Michi.Core
             s.Packets.Clear();foreach(var p in d.Packets){RequireSave(p!=null&&p.Destination>=0&&p.Destination<count&&s.Nodes[p.Destination].Kind==NetworkNodeKind.District&&p.Path!=null&&p.Path.Count>=2&&p.Index>=0&&p.Index<p.Path.Count&&(!p.Travelling||p.Index<p.Path.Count-1)&&Finite(p.Born)&&p.Born>=0&&p.Born<=d.Time&&Finite(p.Progress)&&p.Progress>=0&&p.Progress<1&&p.Path[p.Path.Count-1]==p.Destination);for(int i=0;i<p.Path.Count;i++){RequireSave(p.Path[i]>=0&&p.Path[i]<count);if(i>p.Index){GridLink l;RequireSave(s.Links.TryGetValue(EdgeId(p.Path[i-1],p.Path[i]),out l)&&l.Allows(SignalKind.Data));}}s.Packets.Add(p.SaveCopy());}
             s.waitingData.Clear();foreach(var r in d.Waiting){RequireSave(r!=null&&r.Destination>=0&&r.Destination<count&&s.Nodes[r.Destination].Kind==NetworkNodeKind.District&&Finite(r.Born)&&r.Born>=0&&r.Born<=d.Time);s.waitingData.Enqueue(new DataRequest(r.Destination,r.Born));}
             s.samples.Clear();double previous=-1;foreach(var q in d.Quality){RequireSave(q!=null&&Finite(q.Time)&&q.Time>=previous&&q.Time<=d.Time&&Finite(q.Power)&&Finite(q.Delay)&&q.Good>=0&&q.Bad>=0&&q.Dispatched!=null&&q.Delivered!=null&&q.Dispatched.Length<=count&&q.Delivered.Length==q.Dispatched.Length);previous=q.Time;s.samples.Add(new QualitySample{Time=q.Time,Power=q.Power,Delay=q.Delay,Good=q.Good,Bad=q.Bad,Dispatched=(int[])q.Dispatched.Clone(),Delivered=(int[])q.Delivered.Clone()});}
+            if(d.Batteries!=null){RequireSave(d.Batteries.Length<=s.AvailableBatteries);foreach(var b in d.Batteries){RequireSave(b!=null&&b.Node>=0&&b.Node<count&&s.Nodes[b.Node].Kind==NetworkNodeKind.Relay&&s.BatteryAt(b.Node)==null&&Finite(b.Energy)&&b.Energy>=0&&b.Energy<=BatteryCapacity);s.AddBattery(new BatteryState(b.Node,b.Energy));}}
             s.Time=d.Time;s.Successful=d.Successful;s.Expired=d.Expired;s.serial=d.Serial;s.delaySum=d.DelaySum;s.powerIntegral=d.PowerIntegral;s.spawnClock=d.SpawnClock;s.nodeCredit=(double[])d.NodeCredit.Clone();s.qualityClock=d.QualityClock;s.StableSeconds=d.StableSeconds;s.RecentPower=d.RecentPower;s.RecentData=d.RecentData;s.RecentLatency=d.RecentLatency;s.RecentDelivered=d.RecentDelivered;s.history.Clear();s.routeCache.Clear();s.offerCache=null;s.Phase=RoundPhase.Running;s.AllocatePower();return s;
         }
     }

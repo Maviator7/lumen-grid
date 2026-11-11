@@ -61,7 +61,8 @@ namespace Michi.Runtime
         void Icon(Vector2 p,int kind,Color c){if(kind==1){Vector2[] v={p+new Vector2(4,-15),p+new Vector2(-8,2),p+new Vector2(2,2),p+new Vector2(-4,15),p+new Vector2(10,-3),p+new Vector2(0,-3)};for(int i=0;i<v.Length-1;i++)Line(v[i],v[i+1],c,2);}else if(kind==2){for(int i=-1;i<=1;i++){Vector2 a=p+new Vector2(i*9-5,-9),b=a+new Vector2(9,9),d=a+new Vector2(0,18);Line(a,b,c,2);Line(b,d,c,2);}}else if(kind==3){Line(p+new Vector2(-10,-10),p+new Vector2(10,10),c,2);Line(p+new Vector2(10,-10),p+new Vector2(-10,10),c,2);}else if(kind==4){for(int i=0;i<24;i++){float a=i*Mathf.PI/12,b=(i+1)*Mathf.PI/12;Line(p+new Vector2(Mathf.Cos(a),Mathf.Sin(a))*10,p+new Vector2(Mathf.Cos(b),Mathf.Sin(b))*10,c);}Line(p+new Vector2(8,8),p+new Vector2(17,17),c,2);}else{Line(p+new Vector2(-17,0),p+new Vector2(17,0),c,2);for(int j=-1;j<=1;j++)Fill(new Rect(p.x+j*15-3,p.y-3,6,6),c);}}
         static readonly string[] Roles={"発電所","データセンター","中継①","中継②","中央ハブ","中継③","中継④","工業区","居住区","医療区"};
         static readonly string[] Purposes={"電力を送り出す","データを送り出す","電力・データを中継","電力・データを中継","電力・データの合流点","電力・データを中継","電力・データを中継","電力とデータが必要","電力とデータが必要","電力とデータが必要"};
-        static string RoleName(GridNode n){return n.Id<10?Roles[n.Id]:n.Name;}
+        static string BaseRoleName(GridNode n){return n.Id<10?Roles[n.Id]:n.Name;}
+        string RoleName(GridNode n){return game.Simulation.BatteryAt(n.Id)!=null?"蓄電所 / "+BaseRoleName(n):BaseRoleName(n);}
         static string Purpose(GridNode n){return n.Id<10?Purposes[n.Id]:n.Kind==NetworkNodeKind.Reactor?"電力を送り出す":n.Kind==NetworkNodeKind.DataCore?"データを送り出す":n.Kind==NetworkNodeKind.Relay?"電力・データを中継":"電力とデータが必要";}
         Vector2 NodeScreen(int id){var p=game.View.Camera.WorldToScreenPoint(game.View.NodePoint(id));return new Vector2(p.x/scale,(Screen.height-p.y)/scale);}
         string DistrictContract(GridNode n)
@@ -79,6 +80,7 @@ namespace Michi.Runtime
         void Inspector(float x,float y,int nodeOverride=-1)
         {
             var s=game.Simulation;int id=nodeOverride>=0?nodeOverride:game.View.SelectedNode;
+            if(DrawBatteryInspector(x,y,id))return;
             string[] lines;GUIStyle[] styles;Color[] colors;Color frameColor=Cyan;
             var paragraph=new GUIStyle(tiny){wordWrap=true};var title=new GUIStyle(headline){wordWrap=true};
             if(id>=0){var n=s.Nodes[id];frameColor=FacilityColor(n);

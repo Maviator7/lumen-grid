@@ -38,7 +38,7 @@ namespace Michi.Runtime
         }
         void Update()
         {
-            UpdateAutoSave();if(TitleScreen){UpdateTitle();return;}
+            ValidateBatteryRemoval();UpdateAutoSave();if(TitleScreen){UpdateTitle();return;}
             bool canRotate=Application.isFocused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt;
             if(canRotate)View.TickRotation((Input.GetKey(KeyCode.E)?1:0)-(Input.GetKey(KeyCode.Q)?1:0),Mathf.Min(Time.unscaledDeltaTime,.1f));else View.StopRotation();
             if(Simulation.Phase==RoundPhase.Running&&!Paused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt){accumulator+=Time.unscaledDeltaTime*Speed;int steps=0;while(accumulator>=1.0/60&&Simulation.Phase==RoundPhase.Running&&steps++<16){Simulation.Step(1.0/60);accumulator-=1.0/60;}if(Simulation.Phase==RoundPhase.Result){Paused=true;accumulator=0;}}

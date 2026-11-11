@@ -6,8 +6,9 @@ namespace Michi.Runtime
     public sealed partial class NetworkHud
     {
         static readonly Color RelayLabel=NetworkCityView.RGB(0xd3dfe9),IndustryLabel=NetworkCityView.RGB(0xc7a6ff),HousingLabel=NetworkCityView.RGB(0xffb5d1),MedicalLabel=NetworkCityView.RGB(0x87efbe);
-        static Color FacilityColor(GridNode node)
+        Color FacilityColor(GridNode node)
         {
+            if(game.Simulation.BatteryAt(node.Id)!=null)return StorageGreen;
             if(node.Kind==NetworkNodeKind.Reactor)return Amber;
             if(node.Kind==NetworkNodeKind.DataCore)return Cyan;
             if(node.Kind==NetworkNodeKind.Relay)return RelayLabel;
@@ -16,8 +17,8 @@ namespace Michi.Runtime
         void DrawFacilityLegend(float x,float y)
         {
             Text(x,y,58,24,"施設色",tiny);
-            string[] labels={"発電","データ","中継","工業","住宅","医療"};
-            Color[] colors={Amber,Cyan,RelayLabel,IndustryLabel,HousingLabel,MedicalLabel};
+            string[] labels={"発電","データ","中継","工業","住宅","医療","蓄電"};
+            Color[] colors={Amber,Cyan,RelayLabel,IndustryLabel,HousingLabel,MedicalLabel,StorageGreen};
             for(int i=0;i<labels.Length;i++){float left=x+62+i*82;Fill(new Rect(left,y+8,5,9),colors[i]);Text(left+12,y,68,24,labels[i],tiny,colors[i]);}
         }
         bool LabelFocused(GridNode n){return n.Id==game.View.SelectedNode||n.Id==game.View.PendingNode||n.Id==game.HoverNode||(game.Tutorial.Active&&n.Id==game.Tutorial.TargetNode);}
@@ -35,6 +36,7 @@ namespace Michi.Runtime
                 var point=new Vector2(world.x/scale,(Screen.height-world.y)/scale);if(point.x<0||point.x>width||point.y<124||point.y>height-FooterHeight-6)continue;
                 string issue=DistrictIssue(n),name=RoleName(n),detail="";bool focused=LabelFocused(n);
                 if(issue.Length>0)detail="! "+issue;
+                else if(game.Simulation.BatteryAt(n.Id)!=null)detail=game.Simulation.BatteryAt(n.Id).Energy.ToString("0")+" / 120 MJ";
                 else if(focused&&game.Simulation.ModernRules&&n.Kind==NetworkNodeKind.District)detail="電力 "+n.PowerDemand+" MW / 通信期限 "+game.Simulation.RequestDeadline(n.Id).ToString("0.0")+"秒";
                 else if(focused)detail=game.Simulation.Continuous&&n.Kind==NetworkNodeKind.DataCore?(game.Simulation.DataSourceConnected(n.Id)?"送信 "+n.DataOutputRate.ToString("0.0")+" / "+n.DataSupply.ToString("0.0")+" 件/s":"未接続 / 出力 "+n.DataSupply.ToString("0.0")+" 件/s"):Purpose(n);
                 float w=Mathf.Clamp(Mathf.Max(body.CalcSize(new GUIContent(name)).x,tiny.CalcSize(new GUIContent(detail)).x)+10,72,250),h=detail.Length>0?60:32;

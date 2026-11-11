@@ -26,7 +26,7 @@ namespace Michi.Runtime
         }
         void DrawContinuousBrief()
         {
-            var s=game.Simulation;UpdateExpansionNotice();Color status=s.ExpansionReady?Amber:Cyan;guideBounds=new Rect(26,143,344,520);Frame(guideBounds,status,s.ExpansionReady);
+            var s=game.Simulation;UpdateExpansionNotice();Color status=s.ExpansionReady?Amber:Cyan;guideBounds=new Rect(26,143,344,552);Frame(guideBounds,status,s.ExpansionReady);
             Text(44,158,304,30,s.ExpansionReady?"CITY / 新しい地区を開放可能":"CITY / 成長する供給網",body,status);
             Text(44,199,304,30,s.DistrictCount+" 地区  /  拡張 "+s.ExpansionCount+" 回",headline);
             int noData=s.UnconnectedDataDistrictCount,lowPower=s.UnderpoweredDistrictCount;
@@ -42,13 +42,8 @@ namespace Michi.Runtime
             Text(44,463,304,28,"接続出力  "+available.ToString("0.0")+" 件/s",body,shortage?Red:Cyan);
             Text(44,495,304,26,"全設備 "+s.DataCapacityTotal.ToString("0.0")+" / 未接続 "+(s.DataCapacityTotal-available).ToString("0.0")+" 件/s",tiny);
             Text(44,527,304,28,"送信待ち "+s.WaitingData+" 件 / 移動中 "+s.Packets.Count+" 件",body,s.WaitingData>0?Amber:White);
-            string hint=shortage?"通信出力が "+(s.DataDemandTotal-available).ToString("0.0")+" 件/s 不足。追加センターを接続しよう。":"全地区の供給を45秒安定させると拡張可能。";
-            if(needsWiring)hint="未供給の区画へ回線をつなごう。\n"+hint;
-            else if(shortage)hint+=" 配線が届いていても出力不足で通信は失敗します。";
-            if(needsWiring||shortage)hint+=" 通信実績は直近15秒です。";
-            if(s.ExpansionReady)hint="次は、4方向から地区を選ぼう。\n回線長・専用枠・川越え枠も増えます。";
-            Text(44,570,304,58,hint,new GUIStyle(tiny){wordWrap=true},s.ExpansionReady?Amber:Muted);
-            if(s.ModernRules)Text(44,634,304,25,(s.HousingPeak?"住宅ピーク中 / 終了まで ":"住宅ピークまで ")+Mathf.CeilToInt((float)s.HousingChangeIn)+"秒（3→5 MW）",tiny,s.HousingPeak?Amber:Cyan);
+            DrawBatterySummary(44,570);
+            if(s.ModernRules)Text(44,663,304,25,(s.HousingPeak?"住宅ピーク中 / 終了まで ":"住宅ピークまで ")+Mathf.CeilToInt((float)s.HousingChangeIn)+"秒（3→5 MW）",tiny,s.HousingPeak?Amber:Cyan);
             DrawExpansionNotice();
 
         }

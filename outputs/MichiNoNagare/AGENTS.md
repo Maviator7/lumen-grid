@@ -58,3 +58,9 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 - CardinalExpansionが東西の外縁選択・建物の台座を避ける進入路・地区の障害物を担当。地形はCitySectorが所有し、AllObstacles/IsBlockedを配線・表示・復元で共用する。既存回線の外側に追加し、旧地区は動かさない。
 - CitySectorのDirectionはGrowthDirection=Noneなら旧Northフラグから推定。SavedSectorには方向・地形・DemandRoute・障害物を任意項目として保存。クローン・保存・復元で矩形と経路を共有しない。復元時は未配線のDemandRouteも長さ・障害物・連続性・重複・中間ノード種別を検証。
 - Tools/check-cardinal-expansion.sh（789項目）とEditor/CardinalSaveChecks（実JSON11項目）を実行。四方向混在・鏡映・シード1の建物重なり・旧南方向の省略JSONを含む。
+
+## 蓄電所
+- BatteryStorageは中継の改装による設備（初期1枠・2拡張ごと+1）、120MJ/充電2MW/効率90%/放電4MWを所有。通常発電→不足への放電→余剰の充電の順で配分し、蓄電所同士では充電しない。全流量で中継と回線容量を共用。ライブ状態は公開読み取り専用で、SavedBatteryへ独立保存する。旧JSONの省略は設備なし、旧需要ルールは維持する。
+- BatteryPowerCacheは入力・刻み幅・残量境界を検証して定常流量を再利用。充電と不足/他設備の放電が同居したら再配分する。エネルギー積分と不足時の安定解除は正のステップのみ。0秒のプレビュー・ロードで品質を変更しない。PowerFlowsは地区供給のみで、充電の記録は別管理する。
+- BatteryHud/BatteryGameが中継詳細・枠/残量・改装・撤去の二段階確認を担当。選択/都市が変われば確認を解除。BatteryViewの緑のセル灯はシーン所有で、設備更新時に素材を回収しカメラを保つ。一時停止中は予定流量と停止を明示。
+- Tools/check-battery.sh（5,520項目）とEditor/BatterySaveChecks（125項目）で検証。Editorの内部状態セットはテスト用リフレクションに限定し、ランタイムの開発キー・状態書き換えAPIを追加しない。

@@ -130,9 +130,9 @@ namespace Michi.Core
             var paths=new List<List<int>>();foreach(var source in Nodes)if(source.Kind==(kind==SignalKind.Power?NetworkNodeKind.Reactor:NetworkNodeKind.DataCore)){var path=Path(source.Id,target.Id,kind);if(path!=null)paths.Add(path);}
             paths.Sort((a,b)=>{int c=PathLength(a).CompareTo(PathLength(b));return c!=0?c:a[0].CompareTo(b[0]);});return paths;
         }
-        void AllocatePower()
+        void AllocatePower(double storageStep=0)
         {
-            powerFlows.Clear();powerInspections=null;
+            powerFlows.Clear();chargingFlows.Clear();powerInspections=null;
             foreach(var n in Nodes){n.PowerLoad=0;n.PowerReceived=0;}foreach(var l in Links.Values)l.PowerLoad=0;
             var targets=new List<GridNode>();var routes=new List<List<List<int>>>();foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.District){targets.Add(n);routes.Add(SourcePaths(n,SignalKind.Power));}
             bool changed=true;while(changed){changed=false;for(int d=0;d<targets.Count;d++){
@@ -143,6 +143,7 @@ namespace Michi.Core
                     if(flow<=.00001)continue;RecordPowerFlow(path,target.Id,flow);changed=true;target.PowerReceived+=flow;foreach(int id in path)Nodes[id].PowerLoad+=flow;for(int j=0;j<path.Count-1;j++)Links[EdgeId(path[j],path[j+1])].PowerLoad+=flow;break;
                 }
             }}
+            if(batteries.Count>0)AllocateBatteryFlows(storageStep);
         }
         void RefreshLiveNetwork()
         {
@@ -156,7 +157,7 @@ namespace Michi.Core
         void Fail(DataPacket p){Expired++;Nodes[p.Destination].Failed++;}
         public void Step(double dt)
         {
-            if(Phase!=RoundPhase.Running||dt<=0)return;if(!Continuous)dt=Math.Min(dt,Duration-Time);Time+=dt;UpdateDistrictDemand();powerIntegral+=PowerCoverage*dt;
+            if(Phase!=RoundPhase.Running||dt<=0)return;if(!Continuous)dt=Math.Min(dt,Duration-Time);Time+=dt;UpdateDistrictDemand();if(batteries.Count>0)StepBatteryPower(dt);powerIntegral+=PowerCoverage*dt;
             foreach(var n in Nodes){double rate=Math.Max(0,n.Capacity-n.PowerLoad);nodeCredit[n.Id]=Math.Min(Math.Max(1,rate*.5),nodeCredit[n.Id]+rate*dt);}
             foreach(var l in Links.Values){double rate=l.Kind==LinkKind.PowerOnly?0:Math.Max(0,LinkCapacity-l.PowerLoad);l.Credit=Math.Min(Math.Max(1,rate*.5),l.Credit+rate*dt);}
             if(Continuous)SupplyData(dt);else {spawnClock+=dt;while(spawnClock>=.65){spawnClock-=.65;foreach(var target in Nodes)if(target.Kind==NetworkNodeKind.District){var paths=SourcePaths(target,SignalKind.Data);if(paths.Count==0){Expired++;target.Failed++;}else Packets.Add(new DataPacket{Id=serial++,Destination=target.Id,Path=paths[0],Born=Time});}}}

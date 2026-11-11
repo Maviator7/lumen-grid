@@ -36,7 +36,7 @@ namespace Michi.Core
         ExpansionOffer[] offerCache;
         sealed class QualitySample {public double Time,Power,Delay;public int Good,Bad;public int[] Dispatched,Delivered;}
         readonly List<QualitySample> samples=new List<QualitySample>();
-        void ResetExpansionState(){ExpansionCount=0;expansionCable=0;sectors.Clear();offerCache=null;}
+        void ResetExpansionState(){ClearBatteries();ExpansionCount=0;expansionCable=0;sectors.Clear();offerCache=null;}
         void ResetQuality(){StableSeconds=qualityClock=0;RecentPower=PowerCoverage;RecentData=RecentLatency=0;RecentDelivered=0;samples.Clear();samples.Add(QualitySnapshot());}
         QualitySample QualitySnapshot(){var sample=new QualitySample{Time=Time,Power=powerIntegral,Delay=delaySum,Good=Successful,Bad=Expired,Dispatched=new int[Nodes.Length],Delivered=new int[Nodes.Length]};foreach(var n in Nodes){sample.Dispatched[n.Id]=n.DataDispatched;sample.Delivered[n.Id]=n.Delivered;}return sample;}
         void UpdateQuality(double dt)
@@ -89,7 +89,7 @@ namespace Michi.Core
         {
             var copy=new NetworkSimulation(Map,true,RulesVersion);copy.Nodes=new GridNode[Nodes.Length];
             for(int i=0;i<Nodes.Length;i++){var n=Nodes[i];copy.Nodes[i]=new GridNode(n.Id,n.Code,n.Name,n.X,n.Z,n.Capacity,n.Kind){Role=n.Role,PowerDemand=n.PowerDemand,PowerSupply=n.PowerSupply,DataDemand=n.DataDemand,DataSupply=n.DataSupply};}
-            copy.nodeCredit=new double[Nodes.Length];copy.ExpansionCount=ExpansionCount;copy.expansionCable=expansionCable;foreach(var sector in sectors)copy.sectors.Add(CopySector(sector));copy.Links.Clear();foreach(var l in Links.Values)copy.Add(l.A,l.B,l.Kind);copy.ReturnToDesign();copy.BeginRunning();return copy;
+            foreach(var b in batteries)copy.AddBattery(new BatteryState(b.Node));copy.nodeCredit=new double[Nodes.Length];copy.ExpansionCount=ExpansionCount;copy.expansionCable=expansionCable;foreach(var sector in sectors)copy.sectors.Add(CopySector(sector));copy.Links.Clear();foreach(var l in Links.Values)copy.Add(l.A,l.B,l.Kind);copy.ReturnToDesign();copy.BeginRunning();return copy;
         }
         int AppendNode(string code,string name,double x,double z,NetworkNodeKind kind,int role,double demand=0)
         {

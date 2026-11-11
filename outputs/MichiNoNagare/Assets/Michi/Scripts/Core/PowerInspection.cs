@@ -39,12 +39,13 @@ namespace Michi.Core
             if(powerInspections==null)powerInspections=new PowerInspection[Nodes.Length];
             if(powerInspections[nodeId]!=null)return powerInspections[nodeId];
             var selected=Nodes[nodeId];bool districtSelection=selected.Kind==NetworkNodeKind.District,hasSource=false,allSatisfied=true;
-            foreach(var source in Nodes)if(source.Kind==NetworkNodeKind.Reactor&&source.PowerSupply>0&&Path(source.Id,nodeId,SignalKind.Power)!=null){hasSource=true;break;}
+            foreach(var source in Nodes)if((source.Kind==NetworkNodeKind.Reactor&&source.PowerSupply>0||BatteryAt(source.Id)!=null&&BatteryAt(source.Id).Energy>0)&&Path(source.Id,nodeId,SignalKind.Power)!=null){hasSource=true;break;}
             var districts=new HashSet<int>();foreach(var district in Nodes)if(district.Kind==NetworkNodeKind.District&&district.PowerDemand>0&&(!districtSelection||district.Id==nodeId)&&Path(nodeId,district.Id,SignalKind.Power)!=null){districts.Add(district.Id);if(district.PowerFraction<.98)allSatisfied=false;}
             bool through=selected.PowerLoad>.00001;
             PowerUse state=through?PowerUse.InUse:!hasSource?PowerUse.NoSource:districts.Count==0?PowerUse.NoDestination:allSatisfied?PowerUse.Standby:PowerUse.SupplyLimited;
             var totals=new Dictionary<int,double>();
             foreach(var flow in powerFlows.Values)if(districtSelection?flow.District==nodeId:through?flow.Contains(nodeId):districts.Contains(flow.District)){double amount;totals.TryGetValue(flow.Source,out amount);totals[flow.Source]=amount+flow.Amount;}
+            if(!districtSelection&&through)foreach(var flow in chargingFlows.Values)if(flow.Contains(nodeId)){double amount;totals.TryGetValue(flow.Source,out amount);totals[flow.Source]=amount+flow.Amount;}
             var sources=new List<PowerSourceAmount>();foreach(var pair in totals)sources.Add(new PowerSourceAmount(pair.Key,pair.Value));sources.Sort((a,b)=>{int comparison=b.Amount.CompareTo(a.Amount);return comparison!=0?comparison:a.Source.CompareTo(b.Source);});
             return powerInspections[nodeId]=new PowerInspection(state,selected.PowerLoad,through,sources);
         }
