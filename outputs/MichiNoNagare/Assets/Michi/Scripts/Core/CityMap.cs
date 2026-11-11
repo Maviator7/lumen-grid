@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 namespace Michi.Core
 {
-    public sealed class CityObstacle
+    [Serializable] public sealed class CityObstacle
     {
         public double X,Z,Width,Depth;
         public bool Intersects(double ax,double az,double bx,double bz,double padding=0)

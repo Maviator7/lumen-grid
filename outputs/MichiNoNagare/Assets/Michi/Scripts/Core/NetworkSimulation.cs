@@ -90,7 +90,7 @@ namespace Michi.Core
             p.DedicatedDelta=(kind==LinkKind.Shared?0:1)-(p.Existing&&old.Kind!=LinkKind.Shared?1:0);
             p.BridgeDelta=!p.Existing&&Map.CrossesRiver(Nodes[a],Nodes[b])?1:0;
             if(!p.Existing&&p.AddedCable>MaxLinkLength)p.Error=NetworkEditError.TooLong;
-            else if(!p.Existing&&Map.Blocked(Nodes[a],Nodes[b]))p.Error=NetworkEditError.Obstacle;
+            else if(!p.Existing&&IsBlocked(Nodes[a],Nodes[b]))p.Error=NetworkEditError.Obstacle;
             else if(p.BridgeDelta>0&&BridgeCount+p.BridgeDelta>AvailableBridges)p.Error=NetworkEditError.BridgeBudget;
             else if(p.AddedCost>0&&CableCost+p.AddedCost>CableCostLimit+.00001)p.Error=NetworkEditError.CableBudget;
             else if(p.DedicatedDelta>0&&DedicatedCount+p.DedicatedDelta>AvailableDedicated)p.Error=NetworkEditError.DedicatedBudget;

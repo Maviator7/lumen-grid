@@ -46,7 +46,7 @@ namespace Michi.Runtime
             if(needsWiring)hint="未供給の区画へ回線をつなごう。\n"+hint;
             else if(shortage)hint+=" 配線が届いていても出力不足で通信は失敗します。";
             if(needsWiring||shortage)hint+=" 通信実績は直近15秒です。";
-            if(s.ExpansionReady)hint="次は、隣接する地区を選ぼう。\n回線長・専用枠・川越え枠も増えます。";
+            if(s.ExpansionReady)hint="次は、4方向から地区を選ぼう。\n回線長・専用枠・川越え枠も増えます。";
             Text(44,570,304,58,hint,new GUIStyle(tiny){wordWrap=true},s.ExpansionReady?Amber:Muted);
             if(s.ModernRules)Text(44,634,304,25,(s.HousingPeak?"住宅ピーク中 / 終了まで ":"住宅ピークまで ")+Mathf.CeilToInt((float)s.HousingChangeIn)+"秒（3→5 MW）",tiny,s.HousingPeak?Amber:Cyan);
             DrawExpansionNotice();
@@ -54,28 +54,18 @@ namespace Michi.Runtime
         }
         void DrawExpansionPicker()
         {
+            if(game.Simulation.ExpansionReady){DrawCardinalExpansionPicker();return;}
             var s=game.Simulation;
             float width=Screen.width/scale,height=Screen.height/scale,x=width/2-342,y=height/2-238;
             Fill(new Rect(0,0,width,height),new Color(0,.012f,.025f,.86f));Frame(new Rect(x,y,684,476),Cyan,true);
             Text(x+26,y+20,632,43,"EXPAND / 都市の次の一歩",headline,Cyan);
-            Text(x+26,y+76,632,62,"既存の街と配線を残して、新しい需要を追加します。\n開放後、川を渡る橋と新しい区画への回線をつなぎましょう。",wrap);
-            if(!s.ExpansionReady){
-                Text(x+26,y+155,632,42,"開放条件はまだ満たされていません",headline,Amber);
-                string conditions="安定運転  "+s.StableSeconds.ToString("0")+" / 45 秒"+
-                    "\n電力不足 "+s.UnderpoweredDistrictCount+" 地区 / 通信未接続 "+s.UnconnectedDataDistrictCount+" 地区"+
-                    "\n通信成功率 "+s.RecentData.ToString("P0")+" / 90%以上  ・  平均遅延 "+s.RecentLatency.ToString("0.00")+"秒 / 2.8秒以内";
-                Text(x+26,y+213,632,104,conditions,wrap,White);
-                Text(x+26,y+333,632,58,"街へ戻って運転を再開し、全地区の供給を45秒間安定させましょう。\n住宅ピークや配線の変更で条件を外れると、安定時間は0秒に戻ります。",wrap,Amber);
-            }else{
-            var offers=s.ExpansionOffers;
-            for(int i=0;i<2;i++){
-                var o=offers[i];float bx=x+26+i*326;Frame(new Rect(bx,y+155,306,234),Cyan);
-                Text(bx+16,y+170,274,36,o.Title,headline);
-                string conditions=game.Simulation.ModernRules?"電力 "+o.Demand+" MW / 通信 "+NetworkSimulation.DistrictDataRate(o.Role).ToString("0.0")+" 件/s\n期限 "+NetworkSimulation.DistrictDeadline(o.Role).ToString("0.0")+"秒"+(o.Role==8?" / ピーク時5 MW":"")+"\n資材 +"+(o.CableGrant*1.15).ToString("0.0")+" / 専用 +2 / 橋 +1":"電力 +"+o.Demand+" MW / 通信 +"+NetworkSimulation.DistrictDataRate(o.Role).ToString("0.0")+" 件/s\n回線長 +"+o.CableGrant.ToString("0")+" / 専用 +2 / 橋 +1";
-                Text(bx+16,y+221,274,96,conditions+"\n"+(o.Utilities?"発電所・データセンターを併設":"既存の供給網を延ばす"),new GUIStyle(tiny){wordWrap=true},White);
-                GUI.enabled=o.Available;if(Button(new Rect(bx+16,y+328,274,44),o.Available?(i+1)+"  /  この地区を開放":"この方向は建設できません",true,Cyan))game.ConfirmExpansion(i==0);GUI.enabled=true;
-            }
-            }
+            Text(x+26,y+76,632,62,"今の街を保ったまま、北・南・東・西へ拡張できます。\n全地区への供給を安定させて、次の地区を選びましょう。",wrap);
+            Text(x+26,y+155,632,42,"開放条件はまだ満たされていません",headline,Amber);
+            string conditions="安定運転  "+s.StableSeconds.ToString("0")+" / 45 秒"+
+                "\n電力不足 "+s.UnderpoweredDistrictCount+" 地区 / 通信未接続 "+s.UnconnectedDataDistrictCount+" 地区"+
+                "\n通信成功率 "+s.RecentData.ToString("P0")+" / 90%以上  ・  平均遅延 "+s.RecentLatency.ToString("0.00")+"秒 / 2.8秒以内";
+            Text(x+26,y+213,632,104,conditions,wrap,White);
+            Text(x+26,y+333,632,58,"街へ戻って運転を再開し、全地区の供給を45秒間安定させましょう。\n住宅ピークや配線の変更で条件を外れると、安定時間は0秒に戻ります。",wrap,Amber);
             if(Button(new Rect(x+26,y+412,632,40),"今の街へ戻る  /  ESC"))game.Expansion.Cancel();
         }
     }

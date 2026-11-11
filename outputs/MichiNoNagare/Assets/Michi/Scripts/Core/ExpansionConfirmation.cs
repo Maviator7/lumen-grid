@@ -10,9 +10,10 @@ namespace Michi.Core
             Pending=true;return true;
         }
         public void Cancel(){Pending=false;}
-        public bool Confirm(NetworkSimulation simulation,bool north)
+        public bool Confirm(NetworkSimulation simulation,bool north){return Confirm(simulation,north?ExpansionDirection.North:ExpansionDirection.South);}
+        public bool Confirm(NetworkSimulation simulation,ExpansionDirection direction)
         {
-            if(!Pending||!simulation.Expand(north))return false;
+            if(!Pending||!simulation.Expand(direction))return false;
             Pending=false;return true;
         }
     }

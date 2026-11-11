@@ -9,7 +9,7 @@ namespace Michi.Runtime
             float river=(float)sim.Map.RiverX,width=(float)sim.Map.RiverWidth;
             Box(city,"Water channel",river,-.015f,(minZ+maxZ)/2,width,.03f,maxZ-minZ,Mat(0x08324a));
             foreach(float x in new[]{river-width/2,river+width/2})Line(city,"Canal edge",new[]{new Vector3(x,.02f,minZ),new Vector3(x,.02f,maxZ)},.035f,new Color(.1f,.5f,.65f));
-            int index=0;foreach(var o in sim.Map.Obstacles){float x=(float)o.X,z=(float)o.Z,w=(float)o.Width,d=(float)o.Depth;Box(city,"Restricted foundation "+index,x,.02f,z,w,.12f,d,Mat(0x27313d));var amber=new Color(.65f,.22f,.06f);Line(city,"Restricted perimeter",new[]{new Vector3(x-w/2,.1f,z-d/2),new Vector3(x+w/2,.1f,z-d/2),new Vector3(x+w/2,.1f,z+d/2),new Vector3(x-w/2,.1f,z+d/2),new Vector3(x-w/2,.1f,z-d/2)},.06f,amber);Box(city,"Reserved reactor casing",x,.4f,z,w*.65f,.65f,d*.65f,Mat(0x27313d));for(int i=0;i<3;i++)Box(city,"Warning stripe",x-w*.35f+i*w*.25f,.76f,z,.09f,.025f,d*.6f,Glow(amber));index++;}
+            int index=0;foreach(var o in sim.AllObstacles){float x=(float)o.X,z=(float)o.Z,w=(float)o.Width,d=(float)o.Depth;Box(city,"Restricted foundation "+index,x,.02f,z,w,.12f,d,Mat(0x27313d));var amber=new Color(.65f,.22f,.06f);Line(city,"Restricted perimeter",new[]{new Vector3(x-w/2,.1f,z-d/2),new Vector3(x+w/2,.1f,z-d/2),new Vector3(x+w/2,.1f,z+d/2),new Vector3(x-w/2,.1f,z+d/2),new Vector3(x-w/2,.1f,z-d/2)},.06f,amber);Box(city,"Reserved reactor casing",x,.4f,z,w*.65f,.65f,d*.65f,Mat(0x27313d));for(int i=0;i<3;i++)Box(city,"Warning stripe",x-w*.35f+i*w*.25f,.76f,z,.09f,.025f,d*.6f,Glow(amber));index++;}
         }
         void BuildBridge(GridLink link)
         {

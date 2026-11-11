@@ -15,7 +15,7 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 - ロゴの編集元はAssets/Michi/BrandingSourceのSVG。Resources/BrandingのPNGをHUDとビルド用アイコンに使用。ProjectTools.ConfigureBrandingがインポート設定とアイコンを適用。
 - 新しい都市へ切り替える際はView.Rebuildで旧シーンルート・生成マテリアルを回収する。
 - 新規都市はNetworkSimulation.CurrentRulesVersion=1（地区別期限・住宅ピーク・専用資材×1.75）。既存セーブはRulesVersion省略時0でクラシック維持。地形生成器v1は維持。費用はCableCost/CableCostLimit、物理距離はCableLengthで区別。Tools/check-strategy.shが旧セーブ互換と新ルールを検証。
-- 本編はContinuous=trueの継続運転。45秒連続安定で拡張、15秒窓で品質を判定。拡張候補はクローン上で検証してから確定する。開放ボタンとXは条件未達でも確認画面を開き、未達理由を表示する。ExpansionConfirmationが明示選択と確定を分離。Tools/check-expansion-dialog.shで条件喪失・キャンセル・二重確定も検証。
+- 本編はContinuous=trueの継続運転。45秒連続安定で拡張、15秒窓で品質を判定。拡張候補はクローン上で検証してから確定する。ExpansionDirectionはNone=0を旧保存用に予約し、候補の順序は北・南・東・西。北南は従来生成を維持、東西は密集/迂回地形。開放ボタンとXは条件未達でも確認画面を開き、未達理由を表示する。ExpansionConfirmationが明示選択と確定を分離。Tools/check-expansion-dialog.shで条件喪失・キャンセル・二重確定も検証。
 - DataSupplyは本編の役割別通信需要と7件/sのセンター出力を計算する。DistrictDataConnectedと地区別の警告件数は現在の経路・電力を示し、直近15秒の成功実績とは分けて表示する。待ち要求も生成時刻から期限を数える（クラシック5秒、新ルールは地区別）。成功率から需要を黙って消さない。固定ガイドの旧spawnは維持。
 - 施設・供給源・需要区画の数は可変。表示と計算で固定ID範囲を仮定しない。Roleで建物種別を識別。
 - ガイド完了時はNextTutorialを通じて本編のシード生成へ進む（左ボタン・右上・Enter共通）。都市初期化は拡張も消すことを確認画面で説明し、一時停止で再開する。
@@ -52,3 +52,8 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 - ローカルserve-web.pyは同一オリジンの/api/city-saveで検証済みJSONをwork/city-saves/<port>へ保存。ビルドと独立し、起動時にブラウザ保存が消えてもPCバックアップを利用する。テストは別ポートを使い、本編8766のバックアップへ混ぜない。バックアップJSONをGitに追加しない。
 - タイトルとフッターのセーブ管理からファイル書き出し・読み込み。読み込みは内容確認後に明示復元。タイトル中・読み込み確認中の自動保存を避ける。
 - 検証: Tools/check-web-save.cjs、Tools/check-server-save.py、Editor/SaveDurabilityChecks.cs。保存の確認は実際のChromeのリロードまで行い、別ブラウザの結果だけで本編復旧と呼ばない。
+
+## 4方向の拡張
+- CardinalExpansionが東西の外縁選択・建物の台座を避ける進入路・地区の障害物を担当。地形はCitySectorが所有し、AllObstacles/IsBlockedを配線・表示・復元で共用する。既存回線の外側に追加し、旧地区は動かさない。
+- CitySectorのDirectionはGrowthDirection=Noneなら旧Northフラグから推定。SavedSectorには方向・地形・DemandRoute・障害物を任意項目として保存。クローン・保存・復元で矩形と経路を共有しない。復元時は未配線のDemandRouteも長さ・障害物・連続性・重複・中間ノード種別を検証。
+- Tools/check-cardinal-expansion.sh（789項目）とEditor/CardinalSaveChecks（実JSON11項目）を実行。四方向混在・鏡映・シード1の建物重なり・旧南方向の省略JSONを含む。

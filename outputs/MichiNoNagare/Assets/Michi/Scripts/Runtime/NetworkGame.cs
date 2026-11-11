@@ -29,7 +29,8 @@ namespace Michi.Runtime
         public void CancelReset(){Reset.Cancel();ignoreConfirmFrame=Time.frameCount+1;}
         public void ConfirmReset(){if(!Reset.Confirm(Simulation))return;ignoreConfirmFrame=Time.frameCount+1;View.PendingNode=View.SelectedNode=-1;SelectedLink=-1;View.Rebuild(Simulation);Tool=4;Paused=true;accumulator=0;pointer.Cancel();Notify("都市を初期化しました。一時停止中です。");SaveCity(false);}
         public void RequestExpansion(){if(!Expansion.Request(Simulation)){Notify("地区の開放は本編の都市で行えます。");return;}pointer.Cancel();View.PendingNode=-1;}
-        public void ConfirmExpansion(bool north){if(!Expansion.Confirm(Simulation,north)){Notify("開放条件と候補地区を確認してください。");return;}ignoreConfirmFrame=Time.frameCount+1;View.Rebuild(Simulation);View.FocusSector(Simulation.Sectors[Simulation.Sectors.Count-1]);SelectedLink=-1;Tool=4;accumulator=0;Notify("新しい地区を開放。新しい区画と追加施設を接続して、供給を再び安定させよう。");SaveCity(false);}
+        public void ConfirmExpansion(bool north){ConfirmExpansion(north?ExpansionDirection.North:ExpansionDirection.South);}
+        public void ConfirmExpansion(ExpansionDirection direction){if(!Expansion.Confirm(Simulation,direction)){Notify("開放条件と候補地区を確認してください。");return;}ignoreConfirmFrame=Time.frameCount+1;View.Rebuild(Simulation);View.FocusSector(Simulation.Sectors[Simulation.Sectors.Count-1]);SelectedLink=-1;Tool=4;accumulator=0;Notify(NetworkSimulation.DirectionName(direction)+"の"+NetworkSimulation.TerrainName(Simulation.Sectors[Simulation.Sectors.Count-1].Terrain)+"を開放。追加区画へ電力とデータを届けよう。");SaveCity(false);}
         LinkKind Kind {get{return Tool==1?LinkKind.PowerOnly:Tool==2?LinkKind.DataOnly:LinkKind.Shared;}}
         void Edited(NetworkEditError error)
         {
@@ -44,7 +45,7 @@ namespace Michi.Runtime
             Tutorial.Tick(Simulation,Tool,View.PendingNode,View.SelectedNode);
             View.Sync();UpdatePlanningPreview();
             if(SavePrompt){if(Input.GetKeyDown(KeyCode.Escape))CloseSaveMenu();return;}
-            if(ExpansionPrompt){if(Input.GetKeyDown(KeyCode.Escape))Expansion.Cancel();else if(Input.GetKeyDown(KeyCode.Alpha1))ConfirmExpansion(true);else if(Input.GetKeyDown(KeyCode.Alpha2))ConfirmExpansion(false);return;}
+            if(ExpansionPrompt){if(Input.GetKeyDown(KeyCode.Escape))Expansion.Cancel();else for(int i=0;i<4;i++)if(Input.GetKeyDown(KeyCode.Alpha1+i)){ConfirmExpansion((ExpansionDirection)(i+1));break;}return;}
             if(ResetPrompt){if(Input.GetKeyDown(KeyCode.Escape))CancelReset();return;}
             if(MapPrompt){if(Input.GetKeyDown(KeyCode.Escape))MapPrompt=false;return;}
             if((Input.GetKey(KeyCode.LeftCommand)||Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightCommand)||Input.GetKey(KeyCode.RightControl))&&Input.GetKeyDown(KeyCode.S)){SaveCity();return;}
