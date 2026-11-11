@@ -10,7 +10,7 @@ namespace Michi.Runtime
             float width=Screen.width/scale,height=Screen.height/scale,x=width/2-530,y=height/2-373;
             Fill(new Rect(0,0,width,height),new Color(0,.012f,.025f,.91f));Frame(new Rect(x,y,1060,746),Cyan,true);
             Text(x+24,y+16,1012,38,"EXPAND / 街の形を選ぶ",headline,Cyan);
-            Text(x+24,y+62,1012,28,"1–4で選択 / 地形・供給条件・追加資材を比べよう。既存の街と配線は保持します。",body,White);
+            Text(x+24,y+62,1012,28,"1–4で選択 / 地形・供給条件・資材を比較。通信は通常→ピーク。街と配線は保持します。",body,White);
             var offers=game.Simulation.ExpansionOffers;
             for(int i=0;i<offers.Length;i++)DrawExpansionCard(new Rect(x+24+(i%2)*514,y+102+(i/2)*288,498,274),offers[i],i);
             if(Button(new Rect(x+24,y+694,1012,32),"今の街へ戻る  /  ESC"))game.Expansion.Cancel();
@@ -26,7 +26,8 @@ namespace Michi.Runtime
             Text(r.x+14,r.y+211,150,18,"白＝新しい区画",new GUIStyle(tiny){fontSize=11},White);
             var s=game.Simulation;
             string resources=(s.ModernRules?"資材 +":"回線長 +")+(offer.CableGrant*(s.ModernRules?1.15:1)).ToString("0.0");
-            string text="電力 "+offer.Demand.ToString("0")+" MW / 通信 "+NetworkSimulation.DistrictDataRate(offer.Role).ToString("0.0")+" 件/s"+
+            string rate=NetworkSimulation.DistrictDataRate(offer.Role).ToString("0.0");if(s.CommunicationPeaksEnabled&&NetworkSimulation.DistrictPeakDataRate(offer.Role)>NetworkSimulation.DistrictDataRate(offer.Role))rate+="→"+NetworkSimulation.DistrictPeakDataRate(offer.Role).ToString("0.0");
+            string text="電力 "+offer.Demand.ToString("0")+" MW / 通信 "+rate+" 件/s"+
                 "\n期限 "+(s.ModernRules?NetworkSimulation.DistrictDeadline(offer.Role):5).ToString("0.0")+"秒"+(s.ModernRules&&offer.Role==8?" / 住宅ピーク 5 MW":"")+
                 "\n"+resources+" / 専用 +2本"+"\n川越え +1本 / "+(offer.Utilities?"発電・データ併設":"既存設備から供給");
             if(offer.Role<7)text="候補地を確保できませんでした。";

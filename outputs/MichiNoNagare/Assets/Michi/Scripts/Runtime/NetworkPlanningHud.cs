@@ -12,7 +12,7 @@ namespace Michi.Runtime
         {
             PreviewA=PreviewB=HoverNode=-1;EditPreview=null;
             var mouse=new Vector2(Input.mousePosition.x,Screen.height-Input.mousePosition.y);
-            bool blocked=TitleScreen||MapPrompt||ResetPrompt||GuidePrompt||ExpansionPrompt||pointer.Dragging||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
+            bool blocked=TitleScreen||MapPrompt||ResetPrompt||GuidePrompt||ExpansionPrompt||SavePrompt||CommunicationPrompt||pointer.Dragging||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
             if(!blocked)HoverNode=View.PickNode(mouse);
             int from=-1,to=-1;
             if(!blocked&&Simulation.CanEdit&&Tool<=2){

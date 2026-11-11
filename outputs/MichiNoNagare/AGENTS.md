@@ -16,7 +16,7 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 - 新しい都市へ切り替える際はView.Rebuildで旧シーンルート・生成マテリアルを回収する。
 - 新規都市はNetworkSimulation.CurrentRulesVersion=1（地区別期限・住宅ピーク・専用資材×1.75）。既存セーブはRulesVersion省略時0でクラシック維持。地形生成器v1は維持。費用はCableCost/CableCostLimit、物理距離はCableLengthで区別。Tools/check-strategy.shが旧セーブ互換と新ルールを検証。
 - 本編はContinuous=trueの継続運転。45秒連続安定で拡張、15秒窓で品質を判定。拡張候補はクローン上で検証してから確定する。ExpansionDirectionはNone=0を旧保存用に予約し、候補の順序は北・南・東・西。北南は従来生成を維持、東西は密集/迂回地形。開放ボタンとXは条件未達でも確認画面を開き、未達理由を表示する。ExpansionConfirmationが明示選択と確定を分離。Tools/check-expansion-dialog.shで条件喪失・キャンセル・二重確定も検証。
-- DataSupplyは本編の役割別通信需要と7件/sのセンター出力を計算する。DistrictDataConnectedと地区別の警告件数は現在の経路・電力を示し、直近15秒の成功実績とは分けて表示する。待ち要求も生成時刻から期限を数える（クラシック5秒、新ルールは地区別）。成功率から需要を黙って消さない。固定ガイドの旧spawnは維持。
+- DataSupplyは本編の役割別通信需要と基本7件/sのセンター出力を計算する。増強センターはCommunicationPeaksで追加4件/sを電力供給率に応じて加える。DistrictDataConnectedと地区別の警告件数は現在の経路・電力を示し、直近15秒の成功実績とは分けて表示する。待ち要求も生成時刻から期限を数える（クラシック5秒、新ルールは地区別）。成功率から需要を黙って消さない。固定ガイドの旧spawnは維持。
 - 施設・供給源・需要区画の数は可変。表示と計算で固定ID範囲を仮定しない。Roleで建物種別を識別。
 - ガイド完了時はNextTutorialを通じて本編のシード生成へ進む（左ボタン・右上・Enter共通）。都市初期化は拡張も消すことを確認画面で説明し、一時停止で再開する。
 - PreviewConnectは経路編集の非破壊見積もり。Connect/Paintも同じ判定を使う。NetworkPlanningHudが候補への吸着・可否・追加資材・確定後予算を表示する。NetworkLabelsは優先度付きでHUDとラベル同士の重なりを避け、通常の説明は選択/ホバー時に限る。
@@ -61,6 +61,13 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 
 ## 蓄電所
 - BatteryStorageは中継の改装による設備（初期1枠・2拡張ごと+1）、120MJ/充電2MW/効率90%/放電4MWを所有。通常発電→不足への放電→余剰の充電の順で配分し、蓄電所同士では充電しない。全流量で中継と回線容量を共用。ライブ状態は公開読み取り専用で、SavedBatteryへ独立保存する。旧JSONの省略は設備なし、旧需要ルールは維持する。
-- BatteryPowerCacheは入力・刻み幅・残量境界を検証して定常流量を再利用。充電と不足/他設備の放電が同居したら再配分する。エネルギー積分と不足時の安定解除は正のステップのみ。0秒のプレビュー・ロードで品質を変更しない。PowerFlowsは地区供給のみで、充電の記録は別管理する。
+- BatteryPowerCacheは入力・刻み幅・残量境界を検証して定常流量を再利用。充電と不足/他設備の放電が同居したら再配分する。エネルギー積分と不足時の安定解除は正のステップのみ。0秒のプレビュー・ロードで品質を変更しない。PowerFlowsは電力需要設備（地区・増強センター）への供給で、充電の記録は別管理する。
 - BatteryHud/BatteryGameが中継詳細・枠/残量・改装・撤去の二段階確認を担当。選択/都市が変われば確認を解除。BatteryViewの緑のセル灯はシーン所有で、設備更新時に素材を回収しカメラを保つ。一時停止中は予定流量と停止を明示。
 - Tools/check-battery.sh（5,520項目）とEditor/BatterySaveChecks（125項目）で検証。Editorの内部状態セットはテスト用リフレクションに限定し、ランタイムの開発キー・状態書き換えAPIを追加しない。
+
+## 通信ピークとセンター増強
+- CommunicationPeaksが任意有効化・90秒の猶予/120秒周期の末尾30秒・増強IDを所有。住宅/工業のピークは3件/s、医療は3件/s一定。Runtimeの新規生成はON、旧保存の省略はOFF。RulesVersion/GeneratorVersionは維持する。増強枠は初期1・2拡張ごと+1、7→11件/sに追加電力2MW。実効出力は7+4×供給率。OFFでも増強は残る。
+- PowerConsumerを配分・蓄電・キャッシュ・供給率・品質・診断で共用。センターの追加電力も安定判定に含める。出力は配分後とキャッシュ再利用の両方で更新。SetCenterBoostはパケット経路/進捗を変更しない。RefreshLiveNetworkは追加区画の現在ピーク需要を即時更新する。PowerFlow.Districtは需要施設IDの旧名でセンターも含む。
+- 保存はCommunicationPeaksEnabled/CommunicationEpoch/BoostedCentersの任意項目。起点とID/重複/枠を検証し、Timeを戻してから派生値を再計算。クローンは時計0で猶予を開始し設備IDを独立コピー。ピーク有効の候補は最大データ需要180秒（電力ピーク2回）で検証し、45秒で早期終了しない。CommunicationReferenceの送電バイパスは参照解専用で、既存データ配線を保ち予算/地形を守る。
+- CommunicationPromptは回転/計算/ショートカット/ポインタ/プレビュー/背面ボタンを遮断。設定に変更がなければ時計を戻さない。CommunicationViewの追加セルと素材はシーン所有。センター詳細は部分供給時も実際の供給元を維持する。
+- Tools/check-communication.sh（3,688項目）とEditor/CommunicationSaveChecks（605項目）で検証。UnityビルドはTempを作り直すため、Tools/check-core.shと同時実行しない。

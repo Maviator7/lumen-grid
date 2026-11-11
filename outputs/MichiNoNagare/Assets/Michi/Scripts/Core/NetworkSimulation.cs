@@ -57,7 +57,7 @@ namespace Michi.Core
         public int BridgeCount {get{int n=0;foreach(var l in Links.Values)if(Map.CrossesRiver(Nodes[l.A],Nodes[l.B]))n++;return n;}}
         public double CableLength {get{double n=0;foreach(var l in Links.Values)n+=l.Length;return n;}}
         public int DedicatedCount {get{int n=0;foreach(var l in Links.Values)if(l.Kind!=LinkKind.Shared)n++;return n;}}
-        public double PowerCoverage {get{double d=0,r=0;foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.District){d+=n.PowerDemand;r+=n.PowerReceived;}return d>0?r/d:0;}}
+        public double PowerCoverage {get{double d=0,r=0;foreach(var n in Nodes)if(PowerConsumer(n)){d+=n.PowerDemand;r+=n.PowerReceived;}return d>0?r/d:0;}}
         public double AveragePower {get{return Time>0?powerIntegral/Time:PowerCoverage;}}
         public double DataReliability {get{return Successful+Expired>0?(double)Successful/(Successful+Expired):0;}}
         public double AverageLatency {get{return Successful>0?delaySum/Successful:0;}}
@@ -76,7 +76,7 @@ namespace Michi.Core
             if(!Continuous)LoadInitial();else{Links.Clear();history.Clear();routeCache.Clear();foreach(var e in Map.InitialEdges)Add(e[0],e[1],LinkKind.Shared);}
             ReferenceValid=true;BeginEdit();ReferenceConnect(2,5,LinkKind.PowerOnly);if(Paint(EdgeId(2,4),LinkKind.DataOnly)!=NetworkEditError.None)ReferenceValid=false;
             if(Continuous&&ExpansionCount>0){ApplySectorReference();}
-            EndEdit();
+            PrepareCommunicationReference();EndEdit();
         }
         public void BeginEdit(){if(!CanEdit)return;var copy=new List<GridLink>();foreach(var l in Links.Values)copy.Add(new GridLink(l.A,l.B,l.Kind,l.Length));history.Push(copy);edited=false;}
         public NetworkEditPreview PreviewConnect(int a,int b,LinkKind kind)
@@ -134,7 +134,7 @@ namespace Michi.Core
         {
             powerFlows.Clear();chargingFlows.Clear();powerInspections=null;
             foreach(var n in Nodes){n.PowerLoad=0;n.PowerReceived=0;}foreach(var l in Links.Values)l.PowerLoad=0;
-            var targets=new List<GridNode>();var routes=new List<List<List<int>>>();foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.District){targets.Add(n);routes.Add(SourcePaths(n,SignalKind.Power));}
+            var targets=new List<GridNode>();var routes=new List<List<List<int>>>();foreach(var n in Nodes)if(PowerConsumer(n)){targets.Add(n);routes.Add(SourcePaths(n,SignalKind.Power));}
             bool changed=true;while(changed){changed=false;for(int d=0;d<targets.Count;d++){
                 var target=targets[d];if(target.PowerReceived>=target.PowerDemand-.00001)continue;
                 foreach(var path in routes[d]){double flow=Math.Min(.125,target.PowerDemand-target.PowerReceived);var source=Nodes[path[0]];flow=Math.Min(flow,source.PowerSupply-source.PowerLoad);
@@ -144,20 +144,22 @@ namespace Michi.Core
                 }
             }}
             if(batteries.Count>0)AllocateBatteryFlows(storageStep);
+            else if(boostedCenters.Count>0){IntegrateBatteryEnergy(storageStep);RememberBatteryAllocation(storageStep);}
+            RefreshCenterOutput();
         }
         void RefreshLiveNetwork()
         {
-            routeCache.Clear();AllocatePower();StableSeconds=0;
+            routeCache.Clear();RefreshCommunicationDemand();AllocatePower();StableSeconds=0;
             var failed=new List<DataPacket>();foreach(var p in Packets){var path=Path(p.Node,p.Destination,SignalKind.Data);if(path==null){Fail(p);failed.Add(p);}else{p.Path=path;p.Index=0;p.Progress=0;p.Travelling=false;}}
             foreach(var p in failed)Packets.Remove(p);edited=false;
         }
-        public void ReturnToDesign(){Phase=RoundPhase.Design;Time=0;Successful=Expired=serial=0;spawnClock=delaySum=powerIntegral=0;Packets.Clear();routeCache.Clear();Array.Clear(nodeCredit,0,nodeCredit.Length);foreach(var n in Nodes){n.Delivered=n.Failed=n.Processed=0;n.LastDelivered=-1;}foreach(var l in Links.Values){l.Credit=0;l.Sent=0;}UpdateDistrictDemand();AllocatePower();ResetDataSupply();ResetQuality();edited=false;}
+        public void ReturnToDesign(){Phase=RoundPhase.Design;Time=0;Successful=Expired=serial=0;spawnClock=delaySum=powerIntegral=0;Packets.Clear();routeCache.Clear();Array.Clear(nodeCredit,0,nodeCredit.Length);foreach(var n in Nodes){n.Delivered=n.Failed=n.Processed=0;n.LastDelivered=-1;}foreach(var l in Links.Values){l.Credit=0;l.Sent=0;}CommunicationEpoch=0;RefreshCommunicationDemand();UpdateDistrictDemand();AllocatePower();ResetDataSupply();ResetQuality();edited=false;}
         void BeginRunning(){Phase=RoundPhase.Running;foreach(var l in Links.Values)l.Credit=1;for(int i=0;i<nodeCredit.Length;i++)nodeCredit[i]=1;}
         public void Start(){if(Continuous&&Phase==RoundPhase.Running)return;ReturnToDesign();BeginRunning();}
         void Fail(DataPacket p){Expired++;Nodes[p.Destination].Failed++;}
         public void Step(double dt)
         {
-            if(Phase!=RoundPhase.Running||dt<=0)return;if(!Continuous)dt=Math.Min(dt,Duration-Time);Time+=dt;UpdateDistrictDemand();if(batteries.Count>0)StepBatteryPower(dt);powerIntegral+=PowerCoverage*dt;
+            if(Phase!=RoundPhase.Running||dt<=0)return;if(!Continuous)dt=Math.Min(dt,Duration-Time);Time+=dt;RefreshCommunicationDemand();UpdateDistrictDemand();if(batteries.Count>0||boostedCenters.Count>0)StepBatteryPower(dt);RefreshCenterOutput();powerIntegral+=PowerCoverage*dt;
             foreach(var n in Nodes){double rate=Math.Max(0,n.Capacity-n.PowerLoad);nodeCredit[n.Id]=Math.Min(Math.Max(1,rate*.5),nodeCredit[n.Id]+rate*dt);}
             foreach(var l in Links.Values){double rate=l.Kind==LinkKind.PowerOnly?0:Math.Max(0,LinkCapacity-l.PowerLoad);l.Credit=Math.Min(Math.Max(1,rate*.5),l.Credit+rate*dt);}
             if(Continuous)SupplyData(dt);else {spawnClock+=dt;while(spawnClock>=.65){spawnClock-=.65;foreach(var target in Nodes)if(target.Kind==NetworkNodeKind.District){var paths=SourcePaths(target,SignalKind.Data);if(paths.Count==0){Expired++;target.Failed++;}else Packets.Add(new DataPacket{Id=serial++,Destination=target.Id,Path=paths[0],Born=Time});}}}

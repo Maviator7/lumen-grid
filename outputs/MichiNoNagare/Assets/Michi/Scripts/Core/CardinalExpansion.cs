@@ -48,7 +48,7 @@ namespace Michi.Core
             offer.CableGrant=36+CorridorLength(lower,offer.WestRoute)+CorridorLength(upper,offer.EastRoute);
             for(int attempt=0;attempt<2;attempt++){
                 var test=PlanningClone();test.CommitExpansion(offer);test.LoadSolution();
-                if(test.ReferenceValid){for(int i=0;i<10800&&!test.ExpansionReady;i++)test.Step(1.0/60);if(test.ExpansionReady){offer.Available=true;break;}}
+                if(test.ValidateExpansionOperation(10800)){offer.Available=true;break;}
                 offer.Utilities=true;
             }
             return offer;

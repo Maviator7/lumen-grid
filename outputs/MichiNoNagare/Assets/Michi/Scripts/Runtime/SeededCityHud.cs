@@ -17,7 +17,7 @@ namespace Michi.Runtime
             if(Event.current.type==EventType.KeyDown){if(Event.current.keyCode==KeyCode.Return||Event.current.keyCode==KeyCode.KeypadEnter){game.GenerateCity();Event.current.Use();return;}if(Event.current.keyCode==KeyCode.Escape){game.MapPrompt=false;Event.current.Use();return;}}
             float width=Screen.width/scale,height=Screen.height/scale;Fill(new Rect(0,0,width,height),new Color(0,.012f,.025f,.82f));float x=width/2-272,y=height/2-233;
             Frame(new Rect(x,y,544,466),Cyan,true);var title=new GUIStyle(headline){wordWrap=true};Text(x+26,y+21,492,48,"シードから都市を生成",title,Cyan);
-            string info="新しい都市は「地区別供給」ルールです。\n工業は大電力、医療は短期限、住宅は定期ピーク。\n共用の資材×1／専用×1.75。配置はシードで再現。";
+            string info="新しい都市は「地区別供給」ルールです。\n工業は大電力、医療は短期限、住宅は定期ピーク。\n通信ピークON。センター増強は追加電力2MW。\n共用の資材×1／専用×1.75。配置はシードで再現。";
             Text(x+26,y+81,492,106,info,wrap);Text(x+26,y+184,492,28,"SEED  /  整数を入力",tiny);
             Rect field=new Rect(x+26,y+222,365,47);Frame(field,Cyan,true);GUI.SetNextControlName("citySeed");game.SeedText=GUI.TextField(new Rect(field.x+12,field.y+3,field.width-24,field.height-6),game.SeedText,12,new GUIStyle(body){fontSize=22,alignment=TextAnchor.MiddleLeft});if(game.SeedFieldFocus){GUI.FocusControl("citySeed");game.SeedFieldFocus=false;}
             if(Button(new Rect(x+402,y+222,116,47),"ランダム")){game.SeedText=Random.Range(0,int.MaxValue).ToString();game.SeedError="";}

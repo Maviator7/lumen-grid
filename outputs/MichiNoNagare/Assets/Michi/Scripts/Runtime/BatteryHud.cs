@@ -20,9 +20,9 @@ namespace Michi.Runtime
             if(!source)return b.Energy<.00001?"EMPTY / 発電所への経路なし":"STANDBY / 充電経路なし";
             return b.Energy<.00001?"EMPTY / 余剰電力を待機":"STANDBY / 余剰・需要を待機";
         }
-        string CompactBatterySources(PowerInspection info)
+        string CompactPowerSources(PowerInspection info,bool consumer=false)
         {
-            string text=info.SourcesPassThroughSelection?"この中継を通る供給元：":"接続先区画の供給元：";
+            string text=consumer?"この設備の供給元：":info.SourcesPassThroughSelection?"この設備を通る供給元：":"接続先区画の供給元：";
             if(info.Sources.Count==0)return text+"なし";
             for(int i=0;i<info.Sources.Count&&i<2;i++){var source=info.Sources[i];string name=RoleName(game.Simulation.Nodes[source.Source]);if(name.Length>11)name=name.Substring(0,10)+"…";text+="\n"+name+"  "+source.Amount.ToString("0.0")+" MW";}
             if(info.Sources.Count>2)text+="\nほか "+(info.Sources.Count-2)+" 設備";return text;
@@ -40,7 +40,7 @@ namespace Michi.Runtime
                 Text(x,y+94,w,28,PowerStateTitle(info,n),body,info.State==PowerUse.InUse||info.State==PowerUse.Standby?Cyan:Amber);
                 Text(x,y+127,w,26,"送電  "+n.PowerLoad.ToString("0.0")+" / "+n.Capacity.ToString("0")+" MW",body,Amber);
                 Text(x,y+157,w,26,"通信余力  "+System.Math.Max(0,n.Capacity-n.PowerLoad).ToString("0.0")+" /s",body,Cyan);
-                Text(x,y+191,w,76,CompactBatterySources(info),new GUIStyle(tiny){wordWrap=true},Muted);
+                Text(x,y+191,w,76,CompactPowerSources(info),new GUIStyle(tiny){wordWrap=true},Muted);
                 Text(x,y+276,w,28,"蓄電設備 / 空き "+(s.AvailableBatteries-s.Batteries.Count)+" / "+s.AvailableBatteries+" 枠",body,StorageGreen);
                 Text(x,y+311,w,66,"余剰で充電し、不足時に放電。\n容量120 MJ / 出力最大4 MW\n中継と配線はそのまま使えます。",new GUIStyle(tiny){wordWrap=true},White);
                 GUI.enabled=s.CanInstallBattery(id);
@@ -53,7 +53,7 @@ namespace Michi.Runtime
                 Text(x,y+212,w,27,(game.Paused?"放電予定 ":"放電 ")+b.DischargeRate.ToString("0.0")+" / 4 MW",body,Amber);
                 Text(x,y+246,w,44,BatteryPeakHint(),new GUIStyle(tiny){wordWrap=true},s.HousingPeak?Amber:White);
                 Text(x,y+299,w,44,"送電 "+n.PowerLoad.ToString("0.0")+" / "+n.Capacity.ToString("0")+" MW\n通信余力 "+System.Math.Max(0,n.Capacity-n.PowerLoad).ToString("0.0")+" /s",tiny,White);
-                Text(x,y+350,w,70,CompactBatterySources(s.InspectPower(id)),new GUIStyle(tiny){wordWrap=true},Muted);
+                Text(x,y+350,w,70,CompactPowerSources(s.InspectPower(id)),new GUIStyle(tiny){wordWrap=true},Muted);
                 bool confirm=game.BatteryRemovalNode==id;
                 Text(x,y+418,w,24,confirm?"残量を破棄し、設備枠を回収します。":"回線Undoは設備の対象外です。",tiny,confirm?Amber:Muted);
                 if(Button(new Rect(x,y+447,w,34),confirm?"残量を破棄して撤去を確定":"蓄電設備を撤去…",false,confirm?Red:StorageGreen))game.RequestRemoveBattery(id);
@@ -65,7 +65,8 @@ namespace Michi.Runtime
         void DrawBatterySummary(float x,float y)
         {
             var s=game.Simulation;Text(x,y,304,26,"蓄電所  "+s.Batteries.Count+" / "+s.AvailableBatteries+" 基  ・  "+s.StoredEnergy.ToString("0.0")+" MJ",body,StorageGreen);
-            Text(x,y+28,304,44,"観測で中継を選ぶと改装できます。\n設備枠は2回拡張するごとに+1。",tiny,Muted);
+            Text(x,y+28,304,24,"観測で中継を選ぶと蓄電所に改装できます。",tiny,Muted);
+            if(Button(new Rect(x,y+56,304,31),"通信ピーク設定 / "+(s.CommunicationPeaksEnabled?"ON":"OFF")))game.OpenCommunicationMenu();
         }
     }
 }

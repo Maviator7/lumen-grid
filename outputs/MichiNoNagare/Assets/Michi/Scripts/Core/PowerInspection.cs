@@ -5,6 +5,7 @@ namespace Michi.Core
     public enum PowerUse { InUse,Standby,NoSource,NoDestination,SupplyLimited }
     public sealed class PowerFlow
     {
+        // District is the legacy destination name; upgraded data centers are power consumers too.
         public readonly int Source,District;public readonly IReadOnlyList<int> Path;
         public double Amount {get;internal set;}
         internal PowerFlow(int source,int district,List<int> path){Source=source;District=district;Path=Array.AsReadOnly(path.ToArray());}
@@ -38,9 +39,9 @@ namespace Michi.Core
             if(nodeId<0||nodeId>=Nodes.Length)throw new ArgumentOutOfRangeException("nodeId");
             if(powerInspections==null)powerInspections=new PowerInspection[Nodes.Length];
             if(powerInspections[nodeId]!=null)return powerInspections[nodeId];
-            var selected=Nodes[nodeId];bool districtSelection=selected.Kind==NetworkNodeKind.District,hasSource=false,allSatisfied=true;
+            var selected=Nodes[nodeId];bool districtSelection=PowerConsumer(selected),hasSource=false,allSatisfied=true;
             foreach(var source in Nodes)if((source.Kind==NetworkNodeKind.Reactor&&source.PowerSupply>0||BatteryAt(source.Id)!=null&&BatteryAt(source.Id).Energy>0)&&Path(source.Id,nodeId,SignalKind.Power)!=null){hasSource=true;break;}
-            var districts=new HashSet<int>();foreach(var district in Nodes)if(district.Kind==NetworkNodeKind.District&&district.PowerDemand>0&&(!districtSelection||district.Id==nodeId)&&Path(nodeId,district.Id,SignalKind.Power)!=null){districts.Add(district.Id);if(district.PowerFraction<.98)allSatisfied=false;}
+            var districts=new HashSet<int>();foreach(var district in Nodes)if(PowerConsumer(district)&&district.PowerDemand>0&&(!districtSelection||district.Id==nodeId)&&Path(nodeId,district.Id,SignalKind.Power)!=null){districts.Add(district.Id);if(district.PowerFraction<.98)allSatisfied=false;}
             bool through=selected.PowerLoad>.00001;
             PowerUse state=through?PowerUse.InUse:!hasSource?PowerUse.NoSource:districts.Count==0?PowerUse.NoDestination:allSatisfied?PowerUse.Standby:PowerUse.SupplyLimited;
             var totals=new Dictionary<int,double>();

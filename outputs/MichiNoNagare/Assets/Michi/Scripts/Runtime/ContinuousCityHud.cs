@@ -30,17 +30,17 @@ namespace Michi.Runtime
             Text(44,158,304,30,s.ExpansionReady?"CITY / 新しい地区を開放可能":"CITY / 成長する供給網",body,status);
             Text(44,199,304,30,s.DistrictCount+" 地区  /  拡張 "+s.ExpansionCount+" 回",headline);
             int noData=s.UnconnectedDataDistrictCount,lowPower=s.UnderpoweredDistrictCount;
-            bool needsWiring=noData>0||lowPower>0;
-            Text(44,244,304,60,"現在 / 電力不足 "+lowPower+" 地区\n通信未接続 "+noData+" 地区",wrap,needsWiring?Amber:Cyan);
+            bool needsWiring=noData>0||lowPower>0||s.UnderpoweredCenterCount>0;
+            Text(44,244,304,60,"電力不足 "+lowPower+"地区・増強 "+s.UnderpoweredCenterCount+"基\n通信未接続 "+noData+" 地区",wrap,needsWiring?Amber:Cyan);
             Text(44,310,304,30,s.ExpansionReady?"開放条件クリア！ / 45秒安定":"安定運転  "+s.StableSeconds.ToString("0")+" / 45 秒",body,Amber);Meter(44,349,304,(float)s.StableSeconds/45,status);
             // A persistent filled CTA remains visible after the one-time announcement ends.
             GUI.enabled=true;
             Color readySurface=Color.Lerp(Ink,Amber,.14f+.025f*Mathf.Sin(Time.unscaledTime*2));
             if(Button(new Rect(44,369,304,44),s.ExpansionReady?"地区を選んで開放  >  X":"開放条件を確認  >  X",s.ExpansionReady,status,s.ExpansionReady?(Color?)readySurface:null))game.RequestExpansion();GUI.enabled=true;
             double available=s.ConnectedDataCapacity;bool shortage=available+.001<s.DataDemandTotal;
-            Text(44,431,304,28,"通信需要  "+s.DataDemandTotal.ToString("0.0")+" 件/s",body);
+            Text(44,431,304,28,"通信 "+s.DataDemandTotal.ToString("0.0")+" / ピーク "+s.PeakDataDemandTotal.ToString("0.0")+" 件/s",body);
             Text(44,463,304,28,"接続出力  "+available.ToString("0.0")+" 件/s",body,shortage?Red:Cyan);
-            Text(44,495,304,26,"全設備 "+s.DataCapacityTotal.ToString("0.0")+" / 未接続 "+(s.DataCapacityTotal-available).ToString("0.0")+" 件/s",tiny);
+            Text(44,495,304,26,CommunicationForecast(),tiny);
             Text(44,527,304,28,"送信待ち "+s.WaitingData+" 件 / 移動中 "+s.Packets.Count+" 件",body,s.WaitingData>0?Amber:White);
             DrawBatterySummary(44,570);
             if(s.ModernRules)Text(44,663,304,25,(s.HousingPeak?"住宅ピーク中 / 終了まで ":"住宅ピークまで ")+Mathf.CeilToInt((float)s.HousingChangeIn)+"秒（3→5 MW）",tiny,s.HousingPeak?Amber:Cyan);
@@ -57,7 +57,7 @@ namespace Michi.Runtime
             Text(x+26,y+76,632,62,"今の街を保ったまま、北・南・東・西へ拡張できます。\n全地区への供給を安定させて、次の地区を選びましょう。",wrap);
             Text(x+26,y+155,632,42,"開放条件はまだ満たされていません",headline,Amber);
             string conditions="安定運転  "+s.StableSeconds.ToString("0")+" / 45 秒"+
-                "\n電力不足 "+s.UnderpoweredDistrictCount+" 地区 / 通信未接続 "+s.UnconnectedDataDistrictCount+" 地区"+
+                "\n電力不足 "+s.UnderpoweredDistrictCount+" 地区・増強 "+s.UnderpoweredCenterCount+"基 / 通信未接続 "+s.UnconnectedDataDistrictCount+" 地区"+
                 "\n通信成功率 "+s.RecentData.ToString("P0")+" / 90%以上  ・  平均遅延 "+s.RecentLatency.ToString("0.00")+"秒 / 2.8秒以内";
             Text(x+26,y+213,632,104,conditions,wrap,White);
             Text(x+26,y+333,632,58,"街へ戻って運転を再開し、全地区の供給を45秒間安定させましょう。\n住宅ピークや配線の変更で条件を外れると、安定時間は0秒に戻ります。",wrap,Amber);

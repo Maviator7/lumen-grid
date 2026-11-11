@@ -148,12 +148,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d8f477c334ec946c6b02deb9481da6a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Michi.Runtime.NetworkGame
+  BatteryRemovalNode: -1
   PCBackupStatus: 
   SavePrompt: 0
   ImportCandidate:
     Version: 0
     SavedAt: 
     Network:
+      CommunicationPeaksEnabled: 0
+      CommunicationEpoch: 0
+      BoostedCenters: 
       RulesVersion: 0
       Version: 0
       Generator: 0
@@ -179,6 +183,7 @@ MonoBehaviour:
       NodeCredit: []
       SourceCredit: []
       RequestCredit: []
+      Batteries: []
       Waiting: []
       Sectors: []
       Quality: []
@@ -193,6 +198,8 @@ MonoBehaviour:
   SaveMenuMessage: 
   LastSavedAt: 
   SaveError: 
+  CommunicationPrompt: 0
+  CommunicationChoice: 0
   GuidePrompt: 0
   MapPrompt: 0
   SeedFieldFocus: 0

@@ -14,12 +14,12 @@ namespace Michi.Runtime
         static void Line(Vector2 a,Vector2 b,Color c,float thickness=1){var matrix=GUI.matrix;GUI.matrix=matrix*Matrix4x4.TRS(new Vector3(a.x,a.y,0),Quaternion.Euler(0,0,Mathf.Atan2(b.y-a.y,b.x-a.x)*Mathf.Rad2Deg),Vector3.one);Fill(new Rect(0,0,(b-a).magnitude,thickness),c);GUI.matrix=matrix;}
         static void Frame(Rect r,Color c,bool selected=false,Color? background=null){Color surface=background??Ink;float k=10;Fill(new Rect(r.x,r.y+k,r.width,r.height-2*k),surface);for(int row=0;row<10;row++){float cut=k-row;Fill(new Rect(r.x+cut,r.y+row,r.width-cut,1),surface);Fill(new Rect(r.x,r.yMax-row-1,r.width-cut,1),surface);}var v=new[]{new Vector2(r.x+k,r.y),new Vector2(r.xMax,r.y),new Vector2(r.xMax,r.yMax-k),new Vector2(r.xMax-k,r.yMax),new Vector2(r.x,r.yMax),new Vector2(r.x,r.y+k)};for(int i=0;i<v.Length;i++)Line(v[i],v[(i+1)%v.Length],new Color(c.r,c.g,c.b,selected?.9f:.3f));if(selected){Fill(new Rect(r.x+14,r.yMax-3,r.width-28,2),c);Fill(new Rect(r.x+14,r.y+1,22,2),c);}}
         void Text(float x,float y,float w,float h,string text,GUIStyle style=null,Color? color=null){var st=style??body;var old=st.normal.textColor;if(color.HasValue)st.normal.textColor=color.Value;float measured=Mathf.Ceil(st.CalcHeight(new GUIContent(text),w))+8;GUI.Label(new Rect(x,y,w,Mathf.Max(h,measured)),text,st);st.normal.textColor=old;}
-        bool Button(Rect rect,string text,bool active=false,Color? tint=null,Color? background=null){bool previousEnabled=GUI.enabled;GUI.enabled=previousEnabled&&((!game.MapPrompt&&!game.ResetPrompt&&!game.SavePrompt&&!game.ExpansionPrompt)||drawingModal);var c=tint??Cyan;bool hover=rect.Contains(Event.current.mousePosition)&&GUI.enabled;Color baseSurface=background??Ink;Color surface=hover?Color.Lerp(baseSurface,new Color(c.r,c.g,c.b,Ink.a),.08f):baseSurface;Frame(rect,GUI.enabled?c:Muted,active||hover,surface);var old=button.normal.textColor;button.normal.textColor=GUI.enabled?(active?c:White):Muted;bool clicked=GUI.Button(rect,text,button);button.normal.textColor=old;GUI.enabled=previousEnabled;return clicked;}
+        bool Button(Rect rect,string text,bool active=false,Color? tint=null,Color? background=null){bool previousEnabled=GUI.enabled;GUI.enabled=previousEnabled&&((!game.MapPrompt&&!game.ResetPrompt&&!game.SavePrompt&&!game.ExpansionPrompt&&!game.CommunicationPrompt)||drawingModal);var c=tint??Cyan;bool hover=rect.Contains(Event.current.mousePosition)&&GUI.enabled;Color baseSurface=background??Ink;Color surface=hover?Color.Lerp(baseSurface,new Color(c.r,c.g,c.b,Ink.a),.08f):baseSurface;Frame(rect,GUI.enabled?c:Muted,active||hover,surface);var old=button.normal.textColor;button.normal.textColor=GUI.enabled?(active?c:White):Muted;bool clicked=GUI.Button(rect,text,button);button.normal.textColor=old;GUI.enabled=previousEnabled;return clicked;}
         const float FooterHeight=192;
         static Rect expansionNoticeBounds;
         static Rect guideBounds=new Rect(26,143,344,326),inspectorBounds;
         public static bool IsUI(Vector2 p,bool inspector){float z=Scale,w=Screen.width/z,h=Screen.height/z;p/=z;return p.y<124||p.y>h-FooterHeight-6||guideBounds.Contains(p)||expansionNoticeBounds.Contains(p)||(inspector&&inspectorBounds.Contains(p));}
-        void OnGUI(){expansionNoticeBounds=Rect.zero;if(game==null||game.Simulation==null)return;if(!ready)Setup();scale=Scale;var matrix=GUI.matrix;GUI.matrix=Matrix4x4.TRS(Vector3.zero,Quaternion.identity,new Vector3(scale,scale,1));try{if(game.TitleScreen){DrawTitle();if(game.SavePrompt){drawingModal=true;try{DrawSaveMenu();}finally{drawingModal=false;}}if(game.MapPrompt){drawingModal=true;try{DrawSeedPicker();}finally{drawingModal=false;}}return;}GUI.enabled=!game.MapPrompt&&!game.ResetPrompt&&!game.SavePrompt&&!game.ExpansionPrompt;Draw();GUI.enabled=true;if(game.MapPrompt){drawingModal=true;try{DrawSeedPicker();}finally{drawingModal=false;}}if(game.ResetPrompt){drawingModal=true;try{DrawResetPrompt();}finally{drawingModal=false;}}if(game.ExpansionPrompt){drawingModal=true;try{DrawExpansionPicker();}finally{drawingModal=false;}}if(game.SavePrompt){drawingModal=true;try{DrawSaveMenu();}finally{drawingModal=false;}}}finally{GUI.matrix=matrix;GUI.enabled=true;}}
+        void OnGUI(){expansionNoticeBounds=Rect.zero;if(game==null||game.Simulation==null)return;if(!ready)Setup();scale=Scale;var matrix=GUI.matrix;GUI.matrix=Matrix4x4.TRS(Vector3.zero,Quaternion.identity,new Vector3(scale,scale,1));try{if(game.TitleScreen){DrawTitle();if(game.SavePrompt){drawingModal=true;try{DrawSaveMenu();}finally{drawingModal=false;}}if(game.MapPrompt){drawingModal=true;try{DrawSeedPicker();}finally{drawingModal=false;}}return;}GUI.enabled=!game.MapPrompt&&!game.ResetPrompt&&!game.SavePrompt&&!game.ExpansionPrompt&&!game.CommunicationPrompt;Draw();GUI.enabled=true;if(game.MapPrompt){drawingModal=true;try{DrawSeedPicker();}finally{drawingModal=false;}}if(game.ResetPrompt){drawingModal=true;try{DrawResetPrompt();}finally{drawingModal=false;}}if(game.ExpansionPrompt){drawingModal=true;try{DrawExpansionPicker();}finally{drawingModal=false;}}if(game.SavePrompt){drawingModal=true;try{DrawSaveMenu();}finally{drawingModal=false;}}if(game.CommunicationPrompt){drawingModal=true;try{DrawCommunicationSettings();}finally{drawingModal=false;}}}finally{GUI.matrix=matrix;GUI.enabled=true;}}
         void Draw()
         {
             var s=game.Simulation;float width=Screen.width/scale,height=Screen.height/scale;bool design=s.CanEdit,running=s.Phase==RoundPhase.Running,result=s.Phase==RoundPhase.Result;
@@ -62,7 +62,7 @@ namespace Michi.Runtime
         static readonly string[] Roles={"発電所","データセンター","中継①","中継②","中央ハブ","中継③","中継④","工業区","居住区","医療区"};
         static readonly string[] Purposes={"電力を送り出す","データを送り出す","電力・データを中継","電力・データを中継","電力・データの合流点","電力・データを中継","電力・データを中継","電力とデータが必要","電力とデータが必要","電力とデータが必要"};
         static string BaseRoleName(GridNode n){return n.Id<10?Roles[n.Id]:n.Name;}
-        string RoleName(GridNode n){return game.Simulation.BatteryAt(n.Id)!=null?"蓄電所 / "+BaseRoleName(n):BaseRoleName(n);}
+        string RoleName(GridNode n){if(game.Simulation.IsCenterBoosted(n.Id))return "増強 / "+BaseRoleName(n);return game.Simulation.BatteryAt(n.Id)!=null?"蓄電所 / "+BaseRoleName(n):BaseRoleName(n);}
         static string Purpose(GridNode n){return n.Id<10?Purposes[n.Id]:n.Kind==NetworkNodeKind.Reactor?"電力を送り出す":n.Kind==NetworkNodeKind.DataCore?"データを送り出す":n.Kind==NetworkNodeKind.Relay?"電力・データを中継":"電力とデータが必要";}
         Vector2 NodeScreen(int id){var p=game.View.Camera.WorldToScreenPoint(game.View.NodePoint(id));return new Vector2(p.x/scale,(Screen.height-p.y)/scale);}
         string DistrictContract(GridNode n)
@@ -73,14 +73,16 @@ namespace Michi.Runtime
         }
         string DistrictIssue(GridNode node)
         {
-            if(!game.Simulation.Continuous||node.Kind!=NetworkNodeKind.District)return "";
+            if(!game.Simulation.Continuous)return "";
+            if(node.Kind==NetworkNodeKind.DataCore&&game.Simulation.IsCenterBoosted(node.Id)&&node.PowerFraction<.98)return "増強電力不足";
+            if(node.Kind!=NetworkNodeKind.District)return "";
             bool power=node.PowerFraction<.98,data=!game.Simulation.DistrictDataConnected(node.Id);
             return power&&data?"電力不足 / 通信未接続":power?"電力不足":data?"通信未接続":"";
         }
         void Inspector(float x,float y,int nodeOverride=-1)
         {
             var s=game.Simulation;int id=nodeOverride>=0?nodeOverride:game.View.SelectedNode;
-            if(DrawBatteryInspector(x,y,id))return;
+            if(DrawBatteryInspector(x,y,id)||DrawCommunicationInspector(x,y,id))return;
             string[] lines;GUIStyle[] styles;Color[] colors;Color frameColor=Cyan;
             var paragraph=new GUIStyle(tiny){wordWrap=true};var title=new GUIStyle(headline){wordWrap=true};
             if(id>=0){var n=s.Nodes[id];frameColor=FacilityColor(n);

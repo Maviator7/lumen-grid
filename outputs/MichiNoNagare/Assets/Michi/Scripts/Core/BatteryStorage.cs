@@ -56,7 +56,7 @@ namespace Michi.Core
             double horizon=dt>0?dt:1.0/60;
             foreach(var b in batteries){b.ChargeRate=b.DischargeRate=0;}
             bool changed=true;
-            while(changed){changed=false;foreach(var target in Nodes)if(target.Kind==NetworkNodeKind.District&&target.PowerReceived<target.PowerDemand-.000001){
+            while(changed){changed=false;foreach(var target in Nodes)if(PowerConsumer(target)&&target.PowerReceived<target.PowerDemand-.000001){
                 foreach(var b in batteries){
                     double amount=Math.Min(.125,Math.Min(target.PowerDemand-target.PowerReceived,Math.Min(BatteryOutputLimit,b.Energy/horizon)-b.DischargeRate));
                     if(amount<=.000001)continue;var path=Path(b.Node,target.Id,SignalKind.Power);if(path==null)continue;amount=StoragePathRoom(path,amount);
@@ -77,7 +77,7 @@ namespace Michi.Core
         }
         void IntegrateBatteryEnergy(double dt)
         {
-            if(dt>0)foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.District&&n.PowerFraction<.98)StableSeconds=0;
+            if(dt>0)foreach(var n in Nodes)if(PowerConsumer(n)&&n.PowerFraction<.98)StableSeconds=0;
             if(dt>0)foreach(var b in batteries)b.Energy=Math.Max(0,Math.Min(BatteryCapacity,b.Energy+(b.ChargeRate*BatteryEfficiency-b.DischargeRate)*dt));
         }
     }

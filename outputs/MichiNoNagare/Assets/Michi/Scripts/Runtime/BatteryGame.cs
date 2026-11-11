@@ -5,7 +5,7 @@ namespace Michi.Runtime
     {
         public int BatteryRemovalNode=-1;
         NetworkSimulation batteryRemovalCity;
-        bool CanChangeBattery {get{return !TitleScreen&&!Tutorial.Active&&!GuidePrompt&&!MapPrompt&&!ResetPrompt&&!SavePrompt&&!ExpansionPrompt;}}
+        bool CanChangeBattery {get{return !TitleScreen&&!Tutorial.Active&&!GuidePrompt&&!MapPrompt&&!ResetPrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt;}}
         public void UpgradeBattery(int node)
         {
             if(!CanChangeBattery||!Simulation.InstallBattery(node))return;

@@ -36,7 +36,7 @@ namespace Michi.Core
         ExpansionOffer[] offerCache;
         sealed class QualitySample {public double Time,Power,Delay;public int Good,Bad;public int[] Dispatched,Delivered;}
         readonly List<QualitySample> samples=new List<QualitySample>();
-        void ResetExpansionState(){ClearBatteries();ExpansionCount=0;expansionCable=0;sectors.Clear();offerCache=null;}
+        void ResetExpansionState(){ResetCommunicationEquipment();ClearBatteries();ExpansionCount=0;expansionCable=0;sectors.Clear();offerCache=null;}
         void ResetQuality(){StableSeconds=qualityClock=0;RecentPower=PowerCoverage;RecentData=RecentLatency=0;RecentDelivered=0;samples.Clear();samples.Add(QualitySnapshot());}
         QualitySample QualitySnapshot(){var sample=new QualitySample{Time=Time,Power=powerIntegral,Delay=delaySum,Good=Successful,Bad=Expired,Dispatched=new int[Nodes.Length],Delivered=new int[Nodes.Length]};foreach(var n in Nodes){sample.Dispatched[n.Id]=n.DataDispatched;sample.Delivered[n.Id]=n.Delivered;}return sample;}
         void UpdateQuality(double dt)
@@ -47,6 +47,7 @@ namespace Michi.Core
             var first=samples[0];int good=Successful-first.Good,bad=Expired-first.Bad;RecentDelivered=good;RecentPower=(powerIntegral-first.Power)/Math.Max(.001,Time-first.Time);RecentData=good+bad>0?(double)good/(good+bad):0;RecentLatency=good>0?(delaySum-first.Delay)/good:0;
             foreach(var n in Nodes){double elapsedWindow=Math.Max(.001,Time-first.Time);n.DataOutputRate=(n.DataDispatched-(n.Id<first.Dispatched.Length?first.Dispatched[n.Id]:0))/elapsedWindow;n.DataDeliveryRate=(n.Delivered-(n.Id<first.Delivered.Length?first.Delivered[n.Id]:0))/elapsedWindow;}
             bool all=true;foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.District&&(n.LastDelivered<0||Time-n.LastDelivered>15||n.PowerFraction<.98))all=false;
+            foreach(int id in boostedCenters)if(Nodes[id].PowerFraction<.98)all=false;
             if(all&&PowerCoverage>=.98&&RecentPower>=.98&&RecentData>=.9&&RecentLatency<=2.8)StableSeconds=Math.Min(45,StableSeconds+elapsed);else StableSeconds=0;
         }
         public ExpansionOffer[] ExpansionOffers
@@ -67,7 +68,7 @@ namespace Michi.Core
             // Validate before committing any change to the player's city.
             for(int attempt=0;attempt<2;attempt++){
                 var test=PlanningClone();test.CommitExpansion(offer);test.LoadSolution();
-                if(test.ReferenceValid){for(int i=0;i<7200&&!test.ExpansionReady;i++)test.Step(1.0/60);if(test.ExpansionReady){offer.Available=true;break;}}
+                if(test.ValidateExpansionOperation(7200)){offer.Available=true;break;}
                 offer.Utilities=true;
             }
             return offer;
@@ -89,7 +90,7 @@ namespace Michi.Core
         {
             var copy=new NetworkSimulation(Map,true,RulesVersion);copy.Nodes=new GridNode[Nodes.Length];
             for(int i=0;i<Nodes.Length;i++){var n=Nodes[i];copy.Nodes[i]=new GridNode(n.Id,n.Code,n.Name,n.X,n.Z,n.Capacity,n.Kind){Role=n.Role,PowerDemand=n.PowerDemand,PowerSupply=n.PowerSupply,DataDemand=n.DataDemand,DataSupply=n.DataSupply};}
-            foreach(var b in batteries)copy.AddBattery(new BatteryState(b.Node));copy.nodeCredit=new double[Nodes.Length];copy.ExpansionCount=ExpansionCount;copy.expansionCable=expansionCable;foreach(var sector in sectors)copy.sectors.Add(CopySector(sector));copy.Links.Clear();foreach(var l in Links.Values)copy.Add(l.A,l.B,l.Kind);copy.ReturnToDesign();copy.BeginRunning();return copy;
+            CopyCommunicationTo(copy);foreach(var b in batteries)copy.AddBattery(new BatteryState(b.Node));copy.nodeCredit=new double[Nodes.Length];copy.ExpansionCount=ExpansionCount;copy.expansionCable=expansionCable;foreach(var sector in sectors)copy.sectors.Add(CopySector(sector));copy.Links.Clear();foreach(var l in Links.Values)copy.Add(l.A,l.B,l.Kind);copy.ReturnToDesign();copy.BeginRunning();return copy;
         }
         int AppendNode(string code,string name,double x,double z,NetworkNodeKind kind,int role,double demand=0)
         {

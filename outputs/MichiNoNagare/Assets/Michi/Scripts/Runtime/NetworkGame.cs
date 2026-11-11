@@ -24,7 +24,7 @@ namespace Michi.Runtime
         public void RequestTutorial(){if(Simulation.Phase==RoundPhase.Running&&!Simulation.Continuous){Notify("検証を終えるか、設計へ戻ってからガイドを開いてね。");return;}GuidePrompt=true;}
         public void RestartTutorial(){if(HasSession&&Simulation.Continuous&&!SaveCity(false))return;TitleScreen=false;HasSession=true;TitleGuideConfirm=false;ignoreConfirmFrame=Time.frameCount+1;Simulation=new NetworkSimulation();Tutorial.Begin(Simulation);View.Rebuild(Simulation);GuidePrompt=false;Tool=4;View.PendingNode=View.SelectedNode=-1;SelectedLink=-1;Paused=true;accumulator=0;View.ClearPackets();View.RefreshLinks();View.ResetCamera();pointer.Cancel();}
         public void RequestCity(){if(Simulation.Phase==RoundPhase.Running&&!Simulation.Continuous){Notify("都市の生成は、検証を終えるか設計へ戻ってから行えます。");return;}MapPrompt=true;GuidePrompt=false;SeedFieldFocus=true;SeedText=Simulation.Map.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture);SeedError="";pointer.Cancel();View.PendingNode=-1;}
-        public void GenerateCity(){if(Time.frameCount<=ignoreConfirmFrame)return;int seed;if(!int.TryParse(SeedText,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out seed)){SeedError="シード値は -2147483648 ～ 2147483647 の整数です。";return;}var next=new NetworkSimulation(CityMap.Generate(seed),true,NetworkSimulation.CurrentRulesVersion);ignoreConfirmFrame=Time.frameCount+1;Tutorial.Skip();TitleScreen=false;HasSession=true;Simulation=next;MapPrompt=GuidePrompt=false;View.Rebuild(Simulation);Tool=4;SelectedLink=-1;Paused=true;accumulator=0;pointer.Cancel();Notify("一時停止で開始。右上の「都市を再開」かSpaceで運転できます。");SaveCity(false);}
+        public void GenerateCity(){if(Time.frameCount<=ignoreConfirmFrame)return;int seed;if(!int.TryParse(SeedText,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out seed)){SeedError="シード値は -2147483648 ～ 2147483647 の整数です。";return;}var next=new NetworkSimulation(CityMap.Generate(seed),true,NetworkSimulation.CurrentRulesVersion);ignoreConfirmFrame=Time.frameCount+1;Tutorial.Skip();TitleScreen=false;HasSession=true;Simulation=next;Simulation.SetCommunicationPeaks(true);MapPrompt=GuidePrompt=false;View.Rebuild(Simulation);Tool=4;SelectedLink=-1;Paused=true;accumulator=0;pointer.Cancel();Notify("一時停止で開始。通信ピークは90秒後。センター観測で増強できます。");SaveCity(false);}
         public void RequestReset(){if(Tutorial.Active||GuidePrompt){Notify("練習のやり直しは、上の「操作ガイド」から行えます。");return;}if(MapPrompt)return;Reset.Request();pointer.Cancel();View.PendingNode=-1;}
         public void CancelReset(){Reset.Cancel();ignoreConfirmFrame=Time.frameCount+1;}
         public void ConfirmReset(){if(!Reset.Confirm(Simulation))return;ignoreConfirmFrame=Time.frameCount+1;View.PendingNode=View.SelectedNode=-1;SelectedLink=-1;View.Rebuild(Simulation);Tool=4;Paused=true;accumulator=0;pointer.Cancel();Notify("都市を初期化しました。一時停止中です。");SaveCity(false);}
@@ -39,11 +39,12 @@ namespace Michi.Runtime
         void Update()
         {
             ValidateBatteryRemoval();UpdateAutoSave();if(TitleScreen){UpdateTitle();return;}
-            bool canRotate=Application.isFocused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt;
+            bool canRotate=Application.isFocused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt;
             if(canRotate)View.TickRotation((Input.GetKey(KeyCode.E)?1:0)-(Input.GetKey(KeyCode.Q)?1:0),Mathf.Min(Time.unscaledDeltaTime,.1f));else View.StopRotation();
-            if(Simulation.Phase==RoundPhase.Running&&!Paused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt){accumulator+=Time.unscaledDeltaTime*Speed;int steps=0;while(accumulator>=1.0/60&&Simulation.Phase==RoundPhase.Running&&steps++<16){Simulation.Step(1.0/60);accumulator-=1.0/60;}if(Simulation.Phase==RoundPhase.Result){Paused=true;accumulator=0;}}
+            if(Simulation.Phase==RoundPhase.Running&&!Paused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt){accumulator+=Time.unscaledDeltaTime*Speed;int steps=0;while(accumulator>=1.0/60&&Simulation.Phase==RoundPhase.Running&&steps++<16){Simulation.Step(1.0/60);accumulator-=1.0/60;}if(Simulation.Phase==RoundPhase.Result){Paused=true;accumulator=0;}}
             Tutorial.Tick(Simulation,Tool,View.PendingNode,View.SelectedNode);
             View.Sync();UpdatePlanningPreview();
+            if(CommunicationPrompt){if(Input.GetKeyDown(KeyCode.Escape))CloseCommunicationMenu();return;}
             if(SavePrompt){if(Input.GetKeyDown(KeyCode.Escape))CloseSaveMenu();return;}
             if(ExpansionPrompt){if(Input.GetKeyDown(KeyCode.Escape))Expansion.Cancel();else for(int i=0;i<4;i++)if(Input.GetKeyDown(KeyCode.Alpha1+i)){ConfirmExpansion((ExpansionDirection)(i+1));break;}return;}
             if(ResetPrompt){if(Input.GetKeyDown(KeyCode.Escape))CancelReset();return;}
@@ -63,7 +64,7 @@ namespace Michi.Runtime
             if(Input.GetKeyDown(KeyCode.V))View.FrameCity();
             if(Time.frameCount<=ignoreConfirmFrame){pointer.Cancel();return;}
             var mouse=new Vector2(Input.mousePosition.x,Screen.height-Input.mousePosition.y);
-            bool overUI=GuidePrompt||MapPrompt||ResetPrompt||SavePrompt||ExpansionPrompt||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
+            bool overUI=GuidePrompt||MapPrompt||ResetPrompt||SavePrompt||ExpansionPrompt||CommunicationPrompt||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
             if(Input.GetMouseButtonDown(0)&&!overUI&&View.GroundPoint(Input.mousePosition,out dragAnchor))pointer.Begin(mouse.x,mouse.y,8*Mathf.Min(Screen.width/1440f,Screen.height/900f));
             if(pointer.Active&&Input.GetMouseButton(0)){pointer.Move(mouse.x,mouse.y);if(pointer.Dragging){View.PendingNode=-1;View.DragMap(dragAnchor,Input.mousePosition);}}
             bool click=false;if(Input.GetMouseButtonUp(0))click=pointer.End(mouse.x,mouse.y);

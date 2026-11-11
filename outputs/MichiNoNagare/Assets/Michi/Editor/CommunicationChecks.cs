@@ -1,0 +1,48 @@
+using System;
+using Michi.Core;
+namespace Michi.Checks
+{
+    public static class CommunicationChecks
+    {
+        static int checks;
+        static void Check(bool ok,string why){checks++;if(!ok)throw new Exception("COMMUNICATION: "+why);}
+        static void Near(double a,double b,string why){Check(Math.Abs(a-b)<1e-7,why+" actual="+a+" expected="+b);}
+        static void Advance(NetworkSimulation s,double seconds){for(int i=0;i<(int)Math.Round(seconds*60);i++)s.Step(1.0/60);}
+        static NetworkSimulation Fixture(int rules=0)
+        {
+            var n=CityMap.Tutorial().CreateNodes();for(int i=0;i<10;i++){n[i].Kind=NetworkNodeKind.Relay;n[i].Role=2;n[i].Capacity=24;n[i].PowerDemand=0;n[i].X=30+i;n[i].Z=30;}
+            n[0].Kind=NetworkNodeKind.Reactor;n[0].Role=0;n[0].X=30;n[0].Z=20;
+            n[1].Kind=NetworkNodeKind.DataCore;n[1].Role=1;n[1].X=34;n[1].Z=20;
+            n[2].X=32;n[2].Z=20;n[3].X=30;n[3].Z=22;
+            n[8].Kind=NetworkNodeKind.District;n[8].Role=8;n[8].PowerDemand=3;n[8].X=34;n[8].Z=22;
+            return new NetworkSimulation(new CityMap(42,true,n,new[]{new[]{0,2},new[]{2,1},new[]{2,8},new[]{1,8}},-100,1,500,99,new CityObstacle[0]),true,rules);
+        }
+        static bool Rejected(NetworkSave d){try{NetworkSimulation.RestoreSave(d);return false;}catch(ArgumentException){return true;}}
+        public static string Run()
+        {
+            checks=0;var s=Fixture();Check(!s.CommunicationPeaksEnabled&&s.BoostedCenters.Count==0,"existing default unchanged");Advance(s,20);double epoch=s.Time;Check(s.SetCommunicationPeaks(true),"opt in");Near(s.CommunicationEpoch,epoch,"grace begins at enabling time");Near(s.DataPeakChangeIn,90,"90sec preparation");Advance(s,89.8);Check(!s.DataPeakActive,"no surprise early peak");s.Step(.3);Check(s.DataPeakActive,"peak begins");Near(s.Nodes[8].DataDemand,3,"housing peak doubles");Advance(s,29.8);s.Step(.3);Check(!s.DataPeakActive,"30sec peak ends");Near(s.Nodes[8].DataDemand,1.5,"base returns");Advance(s,89.8);s.Step(.3);Check(s.DataPeakActive,"120sec cycle repeats");Check(s.SetCommunicationPeaks(false),"disable peak");Near(s.Nodes[8].DataDemand,1.5,"off returns normal demand");Check(!s.HousingPeak&&s.RulesVersion==0,"classic electrical rules retained");
+            s=Fixture();Advance(s,2);var packets=s.Packets.ToArray();var progresses=new double[packets.Length];for(int i=0;i<packets.Length;i++)progresses[i]=packets[i].Progress;double time=s.Time;
+            Check(!s.SetCenterBoost(8,true)&&!s.SetCenterBoost(-1,true),"only center IDs");Check(s.SetCenterBoost(1,true),"boost center");Near(s.Nodes[1].PowerDemand,2,"boost consumes2MW");Near(s.Nodes[1].PowerReceived,2,"power physically delivered");Near(s.Nodes[1].DataSupply,11,"full power output11");Near(s.NominalDataOutput(1),11,"nominal exposed");Near(s.Time,time,"boost does not advance time");Check(s.Packets.Count==packets.Length,"boost retains packets");for(int i=0;i<packets.Length;i++)Check(ReferenceEquals(s.Packets[i],packets[i])&&s.Packets[i].Progress==progresses[i],"no packet rewind");
+            Check(!s.SetCenterBoost(1,true),"duplicate upgrade refused");Check(s.SetCenterBoost(1,false),"downgrade releases slot");Near(s.Nodes[1].DataSupply,7,"standard output restored");Near(s.Nodes[1].PowerDemand,0,"standard no additional demand");
+            s.SetCenterBoost(1,true);s.BeginEdit();s.Paint(NetworkSimulation.EdgeId(1,2),LinkKind.DataOnly);s.EndEdit();Near(s.Nodes[1].PowerReceived,0,"data-only cannot power equipment");Near(s.Nodes[1].DataSupply,7,"unpowered upgrade does not produce free extra data");Check(s.UnderpoweredCenterCount==1&&s.PowerCoverage<.98,"center included in supply and warnings");Check(s.InspectPower(1).State==PowerUse.NoSource,"own power diagnostic");
+            s.BeginEdit();s.Paint(NetworkSimulation.EdgeId(1,2),LinkKind.Shared);s.EndEdit();Near(s.Nodes[1].DataSupply,11,"rewire refreshes output immediately");
+            s=Fixture();s.Nodes[8].PowerDemand=0;s.SetCenterBoost(1,true);s.Nodes[0].PowerSupply=1;s.Step(.1);Near(s.Nodes[1].PowerReceived,1,"partial supplied power");Near(s.Nodes[1].DataSupply,9,"partial boost scales extra4");Near(s.PowerCoverage,.5,"telemetry includes center");
+            s=Fixture();s.Nodes[8].PowerDemand=0;s.SetCenterBoost(1,true);Check(s.InstallBattery(2),"storage on center feeder");Advance(s,10);double charge=s.BatteryAt(2).Energy;s.Nodes[0].PowerSupply=0;s.Step(.1);Check(s.BatteryAt(2).DischargeRate>0&&s.BatteryAt(2).Energy<charge,"storage supports center");Near(s.Nodes[1].DataSupply,11,"battery keeps boost running");Check(s.InspectPower(1).Sources.Count==1&&s.InspectPower(1).Sources[0].Source==2,"center actual battery source");
+            charge=s.BatteryAt(2).Energy;s.SetCenterBoost(1,false);Near(s.BatteryAt(2).Energy,charge,"downgrade preview does not integrate battery");s.SetCenterBoost(1,true);Near(s.BatteryAt(2).Energy,charge,"upgrade preview does not integrate battery");
+            s=Fixture();s.SetCommunicationPeaks(true);s.SetCenterBoost(1,true);Advance(s,95);var saved=s.CaptureSave();var restored=NetworkSimulation.RestoreSave(saved);Check(restored.CommunicationPeaksEnabled&&restored.DataPeakActive&&restored.IsCenterBoosted(1),"mode and phase restored");Near(restored.DataPeakChangeIn,s.DataPeakChangeIn,"countdown resumes");saved.BoostedCenters[0]=8;Check(s.IsCenterBoosted(1)&&restored.IsCenterBoosted(1),"capture/restore independence");
+            for(int i=0;i<1200;i++){s.Step(1.0/60);restored.Step(1.0/60);Check(s.Successful==restored.Successful&&s.Expired==restored.Expired,"save traffic deterministic");Near(s.Nodes[1].DataSupply,restored.Nodes[1].DataSupply,"save output deterministic");Near(s.Nodes[8].DataDemand,restored.Nodes[8].DataDemand,"save demand deterministic");}
+            var invalid=s.CaptureSave();invalid.CommunicationEpoch=double.NaN;Check(Rejected(invalid),"invalid epoch rejected");invalid=s.CaptureSave();invalid.CommunicationEpoch=s.Time+1;Check(Rejected(invalid),"future epoch rejected");invalid=s.CaptureSave();invalid.BoostedCenters=new[]{8};Check(Rejected(invalid),"non-center rejected");invalid=s.CaptureSave();invalid.BoostedCenters=new[]{1,1};Check(Rejected(invalid),"duplicate/excess rejected");
+            var timing=Fixture();timing.SetCommunicationPeaks(true);Advance(timing,37);double remaining=timing.DataPeakChangeIn;Check(!timing.SetCommunicationPeaks(true),"unchanged enable cannot restart grace");Near(timing.DataPeakChangeIn,remaining,"unchanged epoch kept");timing.Step(0);Near(timing.DataPeakChangeIn,remaining,"zero step freezes forecast");timing.SetCommunicationPeaks(false);Advance(timing,10);timing.SetCommunicationPeaks(true);Near(timing.DataPeakChangeIn,90,"re-enable starts a new preparation period");
+            var slots=Fixture();slots.Nodes[4].Kind=NetworkNodeKind.DataCore;slots.Nodes[4].DataSupply=7;slots.SetCenterBoost(1,true);Check(!slots.SetCenterBoost(4,true),"shared upgrade slot enforced");slots.SetCenterBoost(1,false);Check(slots.SetCenterBoost(4,true),"released slot can move to another center");
+            var draining=Fixture();draining.Nodes[8].PowerDemand=0;draining.SetCenterBoost(1,true);draining.InstallBattery(2);var boundary=draining.CaptureSave();boundary.Nodes[0].PowerSupply=0;boundary.Batteries[0].Energy=2.0/60;boundary.StableSeconds=45;draining=NetworkSimulation.RestoreSave(boundary);draining.Step(1.0/60);Check(draining.ExpansionReady,"last fully powered storage tick keeps readiness");var reloaded=NetworkSimulation.RestoreSave(draining.CaptureSave());Check(reloaded.ExpansionReady,"center-depletion load preview keeps saved stability");draining.Step(1.0/60);reloaded.Step(1.0/60);Check(!draining.ExpansionReady&&!reloaded.ExpansionReady,"underpowered center cancels readiness on next positive tick");Near(draining.Nodes[1].DataSupply,7,"depleted storage drops output to base");
+            var old=Fixture().CaptureSave();old.BoostedCenters=null;Check(!NetworkSimulation.RestoreSave(old).CommunicationPeaksEnabled,"omitted legacy settings stay disabled");
+            s.LoadInitial();Check(s.CommunicationPeaksEnabled&&s.BoostedCenters.Count==0&&s.CommunicationEpoch==0,"reset retains mode, clears equipment and restarts grace");Check(!new NetworkSimulation().SetCommunicationPeaks(true),"tutorial cannot opt in");
+            foreach(int seed in new[]{42,291026,-19}){var city=new NetworkSimulation(CityMap.Generate(seed),true,1);city.SetCommunicationPeaks(true);city.LoadSolution();Check(city.ReferenceValid,"peak reference legal seed="+seed);Advance(city,405);Check(city.ExpansionReady&&city.RecentData>=.9,"initial survives coincident peaks seed="+seed+" "+city.Summary());foreach(var offer in city.ExpansionOffers)Check(offer.Available,"four offers survive peak stress seed="+seed+" "+offer.Direction);Check(city.Expand(ExpansionDirection.East),"peak east expansion");city.LoadSolution();Advance(city,405);Check(city.ReferenceValid&&city.ExpansionReady,"expanded city survives peaks seed="+seed);}
+            var livePeak=new NetworkSimulation(CityMap.Generate(291026),true,1);livePeak.SetCommunicationPeaks(true);livePeak.LoadSolution();Advance(livePeak,101);Check(livePeak.DataPeakActive&&livePeak.ExpansionReady,"live peak expansion setup");Check(livePeak.Expand(ExpansionDirection.East),"open residential sector while peak active");var added=livePeak.Nodes[livePeak.Sectors[livePeak.Sectors.Count-1].District];Check(added.Role==8,"residential regression seed");Near(added.DataDemand,3,"new sector immediately has peak demand before resuming");
+            return "PASS: "+checks+" communication checks";
+        }
+#if COMMUNICATION_STANDALONE
+        public static void Main(){Console.WriteLine(Run());}
+#endif
+    }
+}
