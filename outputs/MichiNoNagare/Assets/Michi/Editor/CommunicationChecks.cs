@@ -38,7 +38,22 @@ namespace Michi.Checks
             var old=Fixture().CaptureSave();old.BoostedCenters=null;Check(!NetworkSimulation.RestoreSave(old).CommunicationPeaksEnabled,"omitted legacy settings stay disabled");
             s.LoadInitial();Check(s.CommunicationPeaksEnabled&&s.BoostedCenters.Count==0&&s.CommunicationEpoch==0,"reset retains mode, clears equipment and restarts grace");Check(!new NetworkSimulation().SetCommunicationPeaks(true),"tutorial cannot opt in");
             foreach(int seed in new[]{42,291026,-19}){var city=new NetworkSimulation(CityMap.Generate(seed),true,1);city.SetCommunicationPeaks(true);city.LoadSolution();Check(city.ReferenceValid,"peak reference legal seed="+seed);Advance(city,405);Check(city.ExpansionReady&&city.RecentData>=.9,"initial survives coincident peaks seed="+seed+" "+city.Summary());foreach(var offer in city.ExpansionOffers)Check(offer.Available,"four offers survive peak stress seed="+seed+" "+offer.Direction);Check(city.Expand(ExpansionDirection.East),"peak east expansion");city.LoadSolution();Advance(city,405);Check(city.ReferenceValid&&city.ExpansionReady,"expanded city survives peaks seed="+seed);}
-            var livePeak=new NetworkSimulation(CityMap.Generate(291026),true,1);livePeak.SetCommunicationPeaks(true);livePeak.LoadSolution();Advance(livePeak,101);Check(livePeak.DataPeakActive&&livePeak.ExpansionReady,"live peak expansion setup");Check(livePeak.Expand(ExpansionDirection.East),"open residential sector while peak active");var added=livePeak.Nodes[livePeak.Sectors[livePeak.Sectors.Count-1].District];Check(added.Role==8,"residential regression seed");Near(added.DataDemand,3,"new sector immediately has peak demand before resuming");
+            var livePeak=new NetworkSimulation(CityMap.Generate(291026),true,1);livePeak.SetCommunicationPeaks(true);livePeak.LoadSolution();Advance(livePeak,101);Check(livePeak.DataPeakActive&&livePeak.ExpansionReady,"live peak expansion setup");Check(livePeak.Expand(ExpansionDirection.East),"open residential sector while peak active");var added=livePeak.Nodes[livePeak.Sectors[livePeak.Sectors.Count-1].District];Check(added.Role==8,"residential regression seed");Near(added.DataDemand,5,"research sector immediately has its own 5 requests/s burst");
+            var research=new NetworkSimulation(CityMap.Generate(291026),true,1);research.LoadSolution();Advance(research,101);
+            Check(research.Expand(ExpansionDirection.East),"research offer available with optional city peaks off");
+            int researchId=research.Sectors[0].District;
+            Near(research.Nodes[researchId].DataDemand,5,"research burst is active without citywide peaks");
+            Near(research.Nodes[researchId].PowerDemand,3,"research has no residential electrical peak");
+            var invalidProfile=research.CaptureSave();invalidProfile.Nodes[researchId].DemandProfile=(DistrictDemandProfile)99;
+            Check(Rejected(invalidProfile),"unknown demand profile rejected");
+            invalidProfile=research.CaptureSave();invalidProfile.Nodes[8].DemandProfile=DistrictDemandProfile.Research;
+            Check(Rejected(invalidProfile),"initial residential district cannot carry an expansion contract");
+            var researchReload=NetworkSimulation.RestoreSave(research.CaptureSave());
+            Near(researchReload.Nodes[researchId].DataDemand,5,"restored research burst uses city clock");
+            Check(researchReload.SetCommunicationPeaks(true),"optional mode can be enabled independently");
+            Near(researchReload.Nodes[researchId].DataDemand,5,"citywide grace cannot reset research burst");
+            Advance(researchReload,20);
+            Near(researchReload.Nodes[researchId].DataDemand,2,"research demand returns to normal");
             return "PASS: "+checks+" communication checks";
         }
 #if COMMUNICATION_STANDALONE

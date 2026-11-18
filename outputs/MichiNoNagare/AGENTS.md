@@ -71,3 +71,8 @@ Unity 6000.3.27f2 / C#。電力とデータの供給網を設計する、夜の�
 - 保存はCommunicationPeaksEnabled/CommunicationEpoch/BoostedCentersの任意項目。起点とID/重複/枠を検証し、Timeを戻してから派生値を再計算。クローンは時計0で猶予を開始し設備IDを独立コピー。ピーク有効の候補は最大データ需要180秒（電力ピーク2回）で検証し、45秒で早期終了しない。CommunicationReferenceの送電バイパスは参照解専用で、既存データ配線を保ち予算/地形を守る。
 - CommunicationPromptは回転/計算/ショートカット/ポインタ/プレビュー/背面ボタンを遮断。設定に変更がなければ時計を戻さない。CommunicationViewの追加セルと素材はシーン所有。センター詳細は部分供給時も実際の供給元を維持する。
 - Tools/check-communication.sh（3,688項目）とEditor/CommunicationSaveChecks（605項目）で検証。UnityビルドはTempを作り直すため、Tools/check-core.shと同時実行しない。
+
+## 通信診断とピーク試運転
+- NetworkFeedbackは送信待ち、経路の所要時間、実際に待った中継・回線、地区の受信電力を区別する。観測前は候補経路として表示し、配線変更後の古い診断は破棄する。
+- PeakTrialはCaptureSave/RestoreSaveで独立した試験都市を作り、稼働中の需要周期、配線、移動中のデータ、蓄電状態を引き継ぐ。実行中は本編を止め、試験都市の結果だけを表示する。拡張の安定運転には加算しない。
+- RelaySpecializationの送電上限・通信余力を配分、蓄電経路、パケット処理、表示で共用する。改装比較はセーブから復元した試験都市で計算する。旧セーブには特化なし。新規拡張の需要特性は開放前に表示し、旧地区は既存契約を維持する。

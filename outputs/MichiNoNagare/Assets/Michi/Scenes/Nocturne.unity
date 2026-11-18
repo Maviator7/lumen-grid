@@ -184,6 +184,7 @@ MonoBehaviour:
       SourceCredit: []
       RequestCredit: []
       Batteries: []
+      RelaySpecializations: []
       Waiting: []
       Sectors: []
       Quality: []

@@ -27,10 +27,10 @@ namespace Michi.Runtime
         public void GenerateCity(){if(Time.frameCount<=ignoreConfirmFrame)return;int seed;if(!int.TryParse(SeedText,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out seed)){SeedError="シード値は -2147483648 ～ 2147483647 の整数です。";return;}var next=new NetworkSimulation(CityMap.Generate(seed),true,NetworkSimulation.CurrentRulesVersion);ignoreConfirmFrame=Time.frameCount+1;Tutorial.Skip();TitleScreen=false;HasSession=true;Simulation=next;Simulation.SetCommunicationPeaks(true);MapPrompt=GuidePrompt=false;View.Rebuild(Simulation);Tool=4;SelectedLink=-1;Paused=true;accumulator=0;pointer.Cancel();Notify("一時停止で開始。通信ピークは90秒後。センター観測で増強できます。");SaveCity(false);}
         public void RequestReset(){if(Tutorial.Active||GuidePrompt){Notify("練習のやり直しは、上の「操作ガイド」から行えます。");return;}if(MapPrompt)return;Reset.Request();pointer.Cancel();View.PendingNode=-1;}
         public void CancelReset(){Reset.Cancel();ignoreConfirmFrame=Time.frameCount+1;}
-        public void ConfirmReset(){if(!Reset.Confirm(Simulation))return;ignoreConfirmFrame=Time.frameCount+1;View.PendingNode=View.SelectedNode=-1;SelectedLink=-1;View.Rebuild(Simulation);Tool=4;Paused=true;accumulator=0;pointer.Cancel();Notify("都市を初期化しました。一時停止中です。");SaveCity(false);}
+        public void ConfirmReset(){if(!Reset.Confirm(Simulation))return;ClearDiagnostic();ignoreConfirmFrame=Time.frameCount+1;View.PendingNode=View.SelectedNode=-1;SelectedLink=-1;View.Rebuild(Simulation);Tool=4;Paused=true;accumulator=0;pointer.Cancel();Notify("都市を初期化しました。一時停止中です。");SaveCity(false);}
         public void RequestExpansion(){if(!Expansion.Request(Simulation)){Notify("地区の開放は本編の都市で行えます。");return;}pointer.Cancel();View.PendingNode=-1;}
         public void ConfirmExpansion(bool north){ConfirmExpansion(north?ExpansionDirection.North:ExpansionDirection.South);}
-        public void ConfirmExpansion(ExpansionDirection direction){if(!Expansion.Confirm(Simulation,direction)){Notify("開放条件と候補地区を確認してください。");return;}ignoreConfirmFrame=Time.frameCount+1;View.Rebuild(Simulation);View.FocusSector(Simulation.Sectors[Simulation.Sectors.Count-1]);SelectedLink=-1;Tool=4;accumulator=0;Notify(NetworkSimulation.DirectionName(direction)+"の"+NetworkSimulation.TerrainName(Simulation.Sectors[Simulation.Sectors.Count-1].Terrain)+"を開放。追加区画へ電力とデータを届けよう。");SaveCity(false);}
+        public void ConfirmExpansion(ExpansionDirection direction){if(!Expansion.Confirm(Simulation,direction)){Notify("開放条件と候補地区を確認してください。");return;}ClearDiagnostic();ignoreConfirmFrame=Time.frameCount+1;View.Rebuild(Simulation);View.FocusSector(Simulation.Sectors[Simulation.Sectors.Count-1]);SelectedLink=-1;Tool=4;accumulator=0;Notify(NetworkSimulation.DirectionName(direction)+"の"+NetworkSimulation.TerrainName(Simulation.Sectors[Simulation.Sectors.Count-1].Terrain)+"を開放。追加区画へ電力とデータを届けよう。");SaveCity(false);}
         LinkKind Kind {get{return Tool==1?LinkKind.PowerOnly:Tool==2?LinkKind.DataOnly:LinkKind.Shared;}}
         void Edited(NetworkEditError error)
         {
@@ -39,11 +39,12 @@ namespace Michi.Runtime
         void Update()
         {
             ValidateBatteryRemoval();UpdateAutoSave();if(TitleScreen){UpdateTitle();return;}
-            bool canRotate=Application.isFocused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt;
+            bool canRotate=Application.isFocused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt&&!FeedbackModal;
             if(canRotate)View.TickRotation((Input.GetKey(KeyCode.E)?1:0)-(Input.GetKey(KeyCode.Q)?1:0),Mathf.Min(Time.unscaledDeltaTime,.1f));else View.StopRotation();
-            if(Simulation.Phase==RoundPhase.Running&&!Paused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt){accumulator+=Time.unscaledDeltaTime*Speed;int steps=0;while(accumulator>=1.0/60&&Simulation.Phase==RoundPhase.Running&&steps++<16){Simulation.Step(1.0/60);accumulator-=1.0/60;}if(Simulation.Phase==RoundPhase.Result){Paused=true;accumulator=0;}}
+            if(Simulation.Phase==RoundPhase.Running&&!Paused&&!ResetPrompt&&!MapPrompt&&!GuidePrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt&&!FeedbackModal){accumulator+=Time.unscaledDeltaTime*Speed;int steps=0;while(accumulator>=1.0/60&&Simulation.Phase==RoundPhase.Running&&steps++<16){Simulation.Step(1.0/60);accumulator-=1.0/60;}if(Simulation.Phase==RoundPhase.Result){Paused=true;accumulator=0;}}
             Tutorial.Tick(Simulation,Tool,View.PendingNode,View.SelectedNode);
-            View.Sync();UpdatePlanningPreview();
+            UpdateFeedback();View.Sync();UpdatePlanningPreview();
+            if(FeedbackModal){if(Input.GetKeyDown(KeyCode.Escape))CloseFeedbackModal();return;}
             if(CommunicationPrompt){if(Input.GetKeyDown(KeyCode.Escape))CloseCommunicationMenu();return;}
             if(SavePrompt){if(Input.GetKeyDown(KeyCode.Escape))CloseSaveMenu();return;}
             if(ExpansionPrompt){if(Input.GetKeyDown(KeyCode.Escape))Expansion.Cancel();else for(int i=0;i<4;i++)if(Input.GetKeyDown(KeyCode.Alpha1+i)){ConfirmExpansion((ExpansionDirection)(i+1));break;}return;}
@@ -59,12 +60,12 @@ namespace Michi.Runtime
             if(Input.GetKeyDown(KeyCode.Tab))Speed=Speed==1?2:Speed==2?4:1;
             if(Input.GetKeyDown(KeyCode.F1)){RequestReset();return;}
             for(int i=0;i<5;i++)if(Input.GetKeyDown(KeyCode.Alpha1+i))SelectTool(i);
-            if(Input.GetKeyDown(KeyCode.Escape)){View.SelectedNode=View.PendingNode=-1;SelectedLink=-1;}
+            if(Input.GetKeyDown(KeyCode.Escape)){ClearDiagnostic();View.SelectedNode=View.PendingNode=-1;SelectedLink=-1;}
             if((Input.GetKey(KeyCode.LeftCommand)||Input.GetKey(KeyCode.LeftControl))&&Input.GetKeyDown(KeyCode.Z))Undo();
             if(Input.GetKeyDown(KeyCode.V))View.FrameCity();
             if(Time.frameCount<=ignoreConfirmFrame){pointer.Cancel();return;}
             var mouse=new Vector2(Input.mousePosition.x,Screen.height-Input.mousePosition.y);
-            bool overUI=GuidePrompt||MapPrompt||ResetPrompt||SavePrompt||ExpansionPrompt||CommunicationPrompt||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
+            bool overUI=GuidePrompt||MapPrompt||ResetPrompt||SavePrompt||ExpansionPrompt||CommunicationPrompt||FeedbackModal||NetworkHud.IsUI(mouse,Tutorial.ShowsHubDetails||View.SelectedNode>=0||SelectedLink>=0);
             if(Input.GetMouseButtonDown(0)&&!overUI&&View.GroundPoint(Input.mousePosition,out dragAnchor))pointer.Begin(mouse.x,mouse.y,8*Mathf.Min(Screen.width/1440f,Screen.height/900f));
             if(pointer.Active&&Input.GetMouseButton(0)){pointer.Move(mouse.x,mouse.y);if(pointer.Dragging){View.PendingNode=-1;View.DragMap(dragAnchor,Input.mousePosition);}}
             bool click=false;if(Input.GetMouseButtonUp(0))click=pointer.End(mouse.x,mouse.y);
@@ -74,7 +75,7 @@ namespace Michi.Runtime
             if(pointer.Dragging)return;
             if(!click)return;int node=View.PickNode(mouse);int link=node<0?View.PickLink(mouse):-1;
             if(Tutorial.Active&&(node>=0?!Tutorial.AllowsNode(node):!Tutorial.AllowsLink(link))){Notify("光る輪の場所を、短くクリックしてね。画面はドラッグで移動できます。");return;}
-            if(!Simulation.CanEdit||Tool==4){View.SelectedNode=node;SelectedLink=link;View.PendingNode=-1;return;}
+            if(!Simulation.CanEdit||Tool==4){if(DiagnosticDistrict>=0&&node>=0&&Simulation.Nodes[node].Kind==NetworkNodeKind.District){SelectDiagnostic(node);return;}View.SelectedNode=node;SelectedLink=link;View.PendingNode=-1;return;}
             if(node>=0){View.SelectedNode=node;SelectedLink=-1;if(Tool==3){View.PendingNode=-1;Notify("撤去は回線をクリックしてください");return;}if(View.PendingNode<0){View.PendingNode=node;Notify("接続先のノードをクリック。Escで解除。");}else if(View.PendingNode==node)View.PendingNode=-1;else{Simulation.BeginEdit();var error=Simulation.Connect(View.PendingNode,node,Kind);Simulation.EndEdit();View.PendingNode=-1;Edited(error);}}
             else if(link>=0){View.SelectedNode=-1;SelectedLink=link;View.PendingNode=-1;Simulation.BeginEdit();NetworkEditError error=NetworkEditError.None;if(Tool==3)Simulation.Remove(link);else error=Simulation.Paint(link,Kind);Simulation.EndEdit();Edited(error);}
             else{View.SelectedNode=View.PendingNode=-1;SelectedLink=-1;}

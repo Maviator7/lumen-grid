@@ -26,27 +26,53 @@ namespace Michi.Runtime
         }
         void DrawContinuousBrief()
         {
-            var s=game.Simulation;UpdateExpansionNotice();Color status=s.ExpansionReady?Amber:Cyan;guideBounds=new Rect(26,143,344,552);Frame(guideBounds,status,s.ExpansionReady);
-            Text(44,158,304,30,s.ExpansionReady?"CITY / 新しい地区を開放可能":"CITY / 成長する供給網",body,status);
-            Text(44,199,304,30,s.DistrictCount+" 地区  /  拡張 "+s.ExpansionCount+" 回",headline);
-            int noData=s.UnconnectedDataDistrictCount,lowPower=s.UnderpoweredDistrictCount;
-            bool needsWiring=noData>0||lowPower>0||s.UnderpoweredCenterCount>0;
-            Text(44,244,304,60,"電力不足 "+lowPower+"地区・増強 "+s.UnderpoweredCenterCount+"基\n通信未接続 "+noData+" 地区",wrap,needsWiring?Amber:Cyan);
-            Text(44,310,304,30,s.ExpansionReady?"開放条件クリア！ / 45秒安定":"安定運転  "+s.StableSeconds.ToString("0")+" / 45 秒",body,Amber);Meter(44,349,304,(float)s.StableSeconds/45,status);
-            // A persistent filled CTA remains visible after the one-time announcement ends.
-            GUI.enabled=true;
-            Color readySurface=Color.Lerp(Ink,Amber,.14f+.025f*Mathf.Sin(Time.unscaledTime*2));
-            if(Button(new Rect(44,369,304,44),s.ExpansionReady?"地区を選んで開放  >  X":"開放条件を確認  >  X",s.ExpansionReady,status,s.ExpansionReady?(Color?)readySurface:null))game.RequestExpansion();GUI.enabled=true;
-            double available=s.ConnectedDataCapacity;bool shortage=available+.001<s.DataDemandTotal;
-            Text(44,431,304,28,"通信 "+s.DataDemandTotal.ToString("0.0")+" / ピーク "+s.PeakDataDemandTotal.ToString("0.0")+" 件/s",body);
-            Text(44,463,304,28,"接続出力  "+available.ToString("0.0")+" 件/s",body,shortage?Red:Cyan);
-            Text(44,495,304,26,CommunicationForecast(),tiny);
-            Text(44,527,304,28,"送信待ち "+s.WaitingData+" 件 / 移動中 "+s.Packets.Count+" 件",body,s.WaitingData>0?Amber:White);
-            DrawBatterySummary(44,570);
-            if(s.ModernRules)Text(44,663,304,25,(s.HousingPeak?"住宅ピーク中 / 終了まで ":"住宅ピークまで ")+Mathf.CeilToInt((float)s.HousingChangeIn)+"秒（3→5 MW）",tiny,s.HousingPeak?Amber:Cyan);
+            var s = game.Simulation;
+            UpdateExpansionNotice();
+            bool diagnosing = game.DiagnosticDistrict >= 0;
+            bool ready = s.ExpansionReady;
+            int lowPower = s.UnderpoweredDistrictCount + s.UnderpoweredCenterCount;
+            int noData = s.UnconnectedDataDistrictCount;
+            bool preparing = s.Time < 2 || s.RecentDelivered == 0 && s.Expired == 0;
+            bool poorQuality = !preparing && (s.RecentData < .90 || s.RecentLatency > 2.8);
+            string status = ready ? "新地区を開放できます" : lowPower > 0 ? "電力不足 " + lowPower + " か所" :
+                noData > 0 ? "通信未接続 " + noData + " 地区" : poorQuality ? "通信品質を改善する" :
+                game.Paused ? "運転を再開して供給を確認" : "供給の安定を確認中";
+            Color statusColor = ready || lowPower > 0 || noData > 0 || poorQuality ? Amber : Cyan;
+            guideBounds = new Rect(26, 143, 344, diagnosing ? 490 : 312);
+            Frame(guideBounds, statusColor, ready);
+            Text(44, 154, 304, 26, s.DistrictCount + " 地区  /  拡張 " + s.ExpansionCount + " 回", tiny, Muted);
+            Text(44, 185, 304, 35, status, new GUIStyle(body){fontSize=20}, statusColor);
+            Text(44, 224, 304, 24, "安定運転 " + s.StableSeconds.ToString("0") + " / 45 秒", tiny);
+            Meter(44, 252, 304, (float)s.StableSeconds / 45, statusColor);
+            var expansion = new Rect(44, 270, 304, 40);
+            if (ready ? PrimaryButton(expansion, "地区を選んで開放  ›", Amber) : QuietButton(expansion, "開放条件  /  X"))
+                game.RequestExpansion();
+            if (Button(new Rect(44, 321, 304, 35), diagnosing ? "通信の診断を閉じる" : "経路と詰まりを見る", diagnosing)) game.ActivateDiagnostic();
+            if (Button(new Rect(44, 371, 145, 36), "ピークを試す")) game.OpenPeakTrial();
+            if (QuietButton(new Rect(200, 371, 148, 36), "通信ピーク設定")) game.OpenCommunicationMenu();
+            Text(44, 414, 304, 25, NextDemandPeak(), tiny, Muted);
+            if (diagnosing) DrawDiagnosticBrief(44, 446, 304);
             DrawExpansionNotice();
-
         }
+        string NextDemandPeak()
+        {
+            var s = game.Simulation;
+            if (s.HousingPeak || s.DataPeakActive || s.ResearchBurstActive)
+            {
+                string active = s.HousingPeak ? "住宅の電力" : "";
+                if (s.DataPeakActive || s.ResearchBurstActive)
+                    active += (active.Length > 0 ? "・" : "") + "通信";
+                return active + "ピーク中";
+            }
+            double power = s.ModernRules ? s.HousingChangeIn : double.PositiveInfinity;
+            double data = s.CommunicationPeaksEnabled ? s.DataPeakChangeIn : double.PositiveInfinity;
+            double research = s.HasResearchDistrict ? s.ResearchBurstChangeIn : double.PositiveInfinity;
+            double next = System.Math.Min(power, System.Math.Min(data, research));
+            if (double.IsPositiveInfinity(next)) return "通常需要で運転";
+            return (next == power ? "住宅電力" : next == data ? "通信" : "研究区の通信") +
+                "ピークまで " + Mathf.CeilToInt((float)next) + " 秒";
+        }
+
         void DrawExpansionPicker()
         {
             if(game.Simulation.ExpansionReady){DrawCardinalExpansionPicker();return;}

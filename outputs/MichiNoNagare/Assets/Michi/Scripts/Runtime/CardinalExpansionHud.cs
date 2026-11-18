@@ -13,7 +13,7 @@ namespace Michi.Runtime
             Text(x+24,y+62,1012,28,"1–4で選択 / 地形・供給条件・資材を比較。通信は通常→ピーク。街と配線は保持します。",body,White);
             var offers=game.Simulation.ExpansionOffers;
             for(int i=0;i<offers.Length;i++)DrawExpansionCard(new Rect(x+24+(i%2)*514,y+102+(i/2)*288,498,274),offers[i],i);
-            if(Button(new Rect(x+24,y+694,1012,32),"今の街へ戻る  /  ESC"))game.Expansion.Cancel();
+            if(QuietButton(new Rect(x+24,y+694,1012,32),"今の街へ戻る  /  ESC"))game.Expansion.Cancel();
         }
         void DrawExpansionCard(Rect r,ExpansionOffer offer,int index)
         {
@@ -26,16 +26,30 @@ namespace Michi.Runtime
             Text(r.x+14,r.y+211,150,18,"白＝新しい区画",new GUIStyle(tiny){fontSize=11},White);
             var s=game.Simulation;
             string resources=(s.ModernRules?"資材 +":"回線長 +")+(offer.CableGrant*(s.ModernRules?1.15:1)).ToString("0.0");
-            string rate=NetworkSimulation.DistrictDataRate(offer.Role).ToString("0.0");if(s.CommunicationPeaksEnabled&&NetworkSimulation.DistrictPeakDataRate(offer.Role)>NetworkSimulation.DistrictDataRate(offer.Role))rate+="→"+NetworkSimulation.DistrictPeakDataRate(offer.Role).ToString("0.0");
+            double baseRate=NetworkSimulation.DistrictBaseDataRate(offer.Role,offer.DemandProfile);
+            double peakRate=NetworkSimulation.DistrictPeakDataRate(offer.Role,offer.DemandProfile);
+            bool research=offer.DemandProfile==DistrictDemandProfile.Research;
+            string rate=baseRate.ToString("0.0");
+            if((s.CommunicationPeaksEnabled||research)&&peakRate>baseRate)rate+="→"+peakRate.ToString("0.0");
             string text="電力 "+offer.Demand.ToString("0")+" MW / 通信 "+rate+" 件/s"+
-                "\n期限 "+(s.ModernRules?NetworkSimulation.DistrictDeadline(offer.Role):5).ToString("0.0")+"秒"+(s.ModernRules&&offer.Role==8?" / 住宅ピーク 5 MW":"")+
+                "\n期限 "+(s.ModernRules?NetworkSimulation.DistrictDeadline(offer.Role):5).ToString("0.0")+"秒"+(s.ModernRules&&offer.Role==8&&!research?" / 住宅ピーク 5 MW":"")+
+                (research?"\n研究通信は120秒ごとに30秒増加":"")+
                 "\n"+resources+" / 専用 +2本"+"\n川越え +1本 / "+(offer.Utilities?"発電・データ併設":"既存設備から供給");
             if(offer.Role<7)text="候補地を確保できませんでした。";
             Text(r.x+174,r.y+79,308,105,text,new GUIStyle(tiny){fontSize=14,wordWrap=true},White);
             Text(r.x+174,r.y+190,308,38,offer.Available?NetworkSimulation.TerrainHint(offer.Terrain):offer.UnavailableReason,new GUIStyle(tiny){fontSize=14,wordWrap=true},offer.Available?Muted:Red);
             bool enabled=GUI.enabled;GUI.enabled=enabled&&offer.Available;
-            if(Button(new Rect(r.x+14,r.y+234,470,32),offer.Available?NetworkSimulation.DirectionName(offer.Direction)+"へ開放  >":"この方向は開放できません",offer.Available,accent))game.ConfirmExpansion(offer.Direction);
+            if(PrimaryButton(new Rect(r.x+14,r.y+234,470,32),offer.Available?NetworkSimulation.DirectionName(offer.Direction)+"へ開放  ›":"この方向は開放できません",accent,offer.Available))game.ConfirmExpansion(offer.Direction);
             GUI.enabled=enabled;
+        }
+        string ExpansionDemandDetails(GridNode node)
+        {
+            if(node.DemandProfile==DistrictDemandProfile.HeavyIndustry)
+                return "重工業の電力需要は常時 "+NetworkSimulation.HeavyIndustryPower.ToString("0")+" MW。";
+            if(node.DemandProfile!=DistrictDemandProfile.Research)return null;
+            var s=game.Simulation;
+            return "研究通信 "+NetworkSimulation.ResearchBaseData.ToString("0")+"→"+NetworkSimulation.ResearchPeakData.ToString("0")+" 件/s / 120秒ごとに30秒\n"+
+                (s.ResearchBurstActive?"通信増加中 / 終了まで ":"通信増加まで ")+Mathf.CeilToInt((float)s.ResearchBurstChangeIn)+" 秒";
         }
         void DrawExpansionMap(Rect r,ExpansionOffer offer)
         {

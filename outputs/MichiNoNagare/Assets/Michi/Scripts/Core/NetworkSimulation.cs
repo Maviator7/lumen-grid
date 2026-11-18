@@ -14,7 +14,7 @@ namespace Michi.Core
     [Serializable] public sealed class GridNode
     {
         public int Id;public string Code,Name;public double X,Z,Capacity,PowerLoad,PowerReceived,PowerDemand;public NetworkNodeKind Kind;public int Delivered,Failed,Processed;
-        public int Role;public double PowerSupply=18,LastDelivered=-1;
+        public int Role;public DistrictDemandProfile DemandProfile;public double PowerSupply=18,LastDelivered=-1;
         public double DataDemand,DataSupply,DataOutputRate,DataDeliveryRate;public int DataRequested,DataDispatched;internal double SourceCredit,RequestCredit;
         public double PowerFraction {get{return PowerDemand>0?Math.Min(1,PowerReceived/PowerDemand):1;}}
         public double Reliability {get{return Delivered+Failed>0?(double)Delivered/(Delivered+Failed):0;}}
@@ -31,7 +31,7 @@ namespace Michi.Core
     }
     [Serializable] public sealed class DataPacket
     {
-        public int Id,Destination,Index;public List<int> Path;public bool Travelling;public double Born,Progress;
+        public int Id,Destination,Index;public List<int> Path;public bool Travelling;public double Born,Progress;internal double WaitAtHop;
         internal DataPacket SaveCopy(){var p=(DataPacket)MemberwiseClone();p.Path=new List<int>(Path);return p;}
         public int Node {get{return Path[Index];}}public int Next {get{return Path[Index+1];}}
     }
@@ -138,7 +138,7 @@ namespace Michi.Core
             bool changed=true;while(changed){changed=false;for(int d=0;d<targets.Count;d++){
                 var target=targets[d];if(target.PowerReceived>=target.PowerDemand-.00001)continue;
                 foreach(var path in routes[d]){double flow=Math.Min(.125,target.PowerDemand-target.PowerReceived);var source=Nodes[path[0]];flow=Math.Min(flow,source.PowerSupply-source.PowerLoad);
-                    foreach(int id in path)if(Nodes[id].Kind==NetworkNodeKind.Relay)flow=Math.Min(flow,Nodes[id].Capacity-Nodes[id].PowerLoad);
+                    foreach(int id in path)if(Nodes[id].Kind==NetworkNodeKind.Relay)flow=Math.Min(flow,RelayPowerCapacity(id)-Nodes[id].PowerLoad);
                     for(int j=0;j<path.Count-1;j++)flow=Math.Min(flow,LinkCapacity-Links[EdgeId(path[j],path[j+1])].PowerLoad);
                     if(flow<=.00001)continue;RecordPowerFlow(path,target.Id,flow);changed=true;target.PowerReceived+=flow;foreach(int id in path)Nodes[id].PowerLoad+=flow;for(int j=0;j<path.Count-1;j++)Links[EdgeId(path[j],path[j+1])].PowerLoad+=flow;break;
                 }
@@ -149,24 +149,29 @@ namespace Michi.Core
         }
         void RefreshLiveNetwork()
         {
-            routeCache.Clear();RefreshCommunicationDemand();AllocatePower();StableSeconds=0;
-            var failed=new List<DataPacket>();foreach(var p in Packets){var path=Path(p.Node,p.Destination,SignalKind.Data);if(path==null){Fail(p);failed.Add(p);}else{p.Path=path;p.Index=0;p.Progress=0;p.Travelling=false;}}
+            routeCache.Clear();ClearDataObservations();RefreshCommunicationDemand();AllocatePower();StableSeconds=0;
+            var failed=new List<DataPacket>();foreach(var p in Packets){var path=Path(p.Node,p.Destination,SignalKind.Data);if(path==null){Fail(p);failed.Add(p);}else{p.Path=path;p.Index=0;p.Progress=0;p.Travelling=false;p.WaitAtHop=0;}}
             foreach(var p in failed)Packets.Remove(p);edited=false;
         }
-        public void ReturnToDesign(){Phase=RoundPhase.Design;Time=0;Successful=Expired=serial=0;spawnClock=delaySum=powerIntegral=0;Packets.Clear();routeCache.Clear();Array.Clear(nodeCredit,0,nodeCredit.Length);foreach(var n in Nodes){n.Delivered=n.Failed=n.Processed=0;n.LastDelivered=-1;}foreach(var l in Links.Values){l.Credit=0;l.Sent=0;}CommunicationEpoch=0;RefreshCommunicationDemand();UpdateDistrictDemand();AllocatePower();ResetDataSupply();ResetQuality();edited=false;}
+        public void ReturnToDesign(){ClearDataObservations();Phase=RoundPhase.Design;Time=0;Successful=Expired=serial=0;spawnClock=delaySum=powerIntegral=0;Packets.Clear();routeCache.Clear();Array.Clear(nodeCredit,0,nodeCredit.Length);foreach(var n in Nodes){n.Delivered=n.Failed=n.Processed=0;n.LastDelivered=-1;}foreach(var l in Links.Values){l.Credit=0;l.Sent=0;}CommunicationEpoch=0;RefreshCommunicationDemand();UpdateDistrictDemand();AllocatePower();ResetDataSupply();ResetQuality();edited=false;}
         void BeginRunning(){Phase=RoundPhase.Running;foreach(var l in Links.Values)l.Credit=1;for(int i=0;i<nodeCredit.Length;i++)nodeCredit[i]=1;}
         public void Start(){if(Continuous&&Phase==RoundPhase.Running)return;ReturnToDesign();BeginRunning();}
         void Fail(DataPacket p){Expired++;Nodes[p.Destination].Failed++;}
         public void Step(double dt)
         {
             if(Phase!=RoundPhase.Running||dt<=0)return;if(!Continuous)dt=Math.Min(dt,Duration-Time);Time+=dt;RefreshCommunicationDemand();UpdateDistrictDemand();if(batteries.Count>0||boostedCenters.Count>0)StepBatteryPower(dt);RefreshCenterOutput();powerIntegral+=PowerCoverage*dt;
-            foreach(var n in Nodes){double rate=Math.Max(0,n.Capacity-n.PowerLoad);nodeCredit[n.Id]=Math.Min(Math.Max(1,rate*.5),nodeCredit[n.Id]+rate*dt);}
+            foreach(var n in Nodes){double rate=NodeDataRate(n.Id);nodeCredit[n.Id]=Math.Min(DataCreditLimit(rate),nodeCredit[n.Id]+rate*dt);}
             foreach(var l in Links.Values){double rate=l.Kind==LinkKind.PowerOnly?0:Math.Max(0,LinkCapacity-l.PowerLoad);l.Credit=Math.Min(Math.Max(1,rate*.5),l.Credit+rate*dt);}
             if(Continuous)SupplyData(dt);else {spawnClock+=dt;while(spawnClock>=.65){spawnClock-=.65;foreach(var target in Nodes)if(target.Kind==NetworkNodeKind.District){var paths=SourcePaths(target,SignalKind.Data);if(paths.Count==0){Expired++;target.Failed++;}else Packets.Add(new DataPacket{Id=serial++,Destination=target.Id,Path=paths[0],Born=Time});}}}
             var finished=new List<DataPacket>();foreach(var p in Packets){
                 if(Time-p.Born>RequestDeadline(p.Destination)){Fail(p);finished.Add(p);continue;}
-                if(p.Travelling){var link=Links[EdgeId(p.Node,p.Next)];p.Progress+=dt/(link.Length*.07+.10);if(p.Progress>=1){p.Index++;p.Progress=0;p.Travelling=false;if(p.Index==p.Path.Count-1){if(Nodes[p.Destination].PowerFraction>=.95){Successful++;Nodes[p.Destination].Delivered++;Nodes[p.Destination].LastDelivered=Time;delaySum+=Time-p.Born;}else Fail(p);finished.Add(p);continue;}}}
-                if(!p.Travelling){if(p.Index>=p.Path.Count-1){finished.Add(p);continue;}var l=Links[EdgeId(p.Node,p.Next)];if(nodeCredit[p.Node]>=1&&l.Credit>=1&&Nodes[p.Node].Capacity-Nodes[p.Node].PowerLoad>0){nodeCredit[p.Node]-=1;l.Credit-=1;l.Sent++;Nodes[p.Node].Processed++;p.Travelling=true;}}
+                if(p.Travelling){var link=Links[EdgeId(p.Node,p.Next)];p.Progress+=dt/(link.Length*.07+.10);if(p.Progress>=1){p.Index++;p.Progress=0;p.Travelling=false;p.WaitAtHop=0;if(p.Index==p.Path.Count-1){if(Nodes[p.Destination].PowerFraction>=.95){Successful++;Nodes[p.Destination].Delivered++;Nodes[p.Destination].LastDelivered=Time;delaySum+=Time-p.Born;}else Fail(p);finished.Add(p);continue;}}}
+                if(!p.Travelling){
+                    if(p.Index>=p.Path.Count-1){finished.Add(p);continue;}
+                    var l=Links[EdgeId(p.Node,p.Next)];bool nodeReady=nodeCredit[p.Node]>=1&&NodeDataRate(p.Node)>0;
+                    if(nodeReady&&l.Credit>=1){nodeCredit[p.Node]-=1;l.Credit-=1;l.Sent++;Nodes[p.Node].Processed++;p.Travelling=true;}
+                    else TrackPacketWait(p,l,nodeReady,dt);
+                }
             }
             foreach(var p in finished)Packets.Remove(p);
             if(Continuous)UpdateQuality(dt);else if(Time>=Duration-.00001){Time=Duration;Phase=RoundPhase.Result;}

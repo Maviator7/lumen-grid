@@ -20,6 +20,7 @@ namespace Michi.Checks
                 for(int i=0;i<4;i++){
                     var direction=(ExpansionDirection)(i+1);Check(offers[i].Direction==direction,"stable cardinal offer order");Check(offers[i].Available,"advertised solvable choice seed="+seed+" direction="+direction+" reason="+offers[i].UnavailableReason);
                     var copy=NetworkSimulation.RestoreSave(s.CaptureSave());Check(copy.Expand(direction),"confirmed direction opens");var sector=copy.Sectors[copy.Sectors.Count-1];Check(sector.Direction==direction,"sector records exact direction");
+                    if(offers[i].Role==7)Check(offers[i].Demand==9&&copy.Nodes[sector.District].PowerDemand==9,"heavy industry advertises and consumes 9 MW");
                     for(int j=0;j<s.Nodes.Length;j++)Check(copy.Nodes[j].X==s.Nodes[j].X&&copy.Nodes[j].Z==s.Nodes[j].Z,"old sites never move");
                     foreach(var e in s.Links.Values)Check(copy.Links.ContainsKey(e.Id)&&!copy.IsBlocked(copy.Nodes[e.A],copy.Nodes[e.B]),"new terrain preserves old wiring");
                     if(i>=2){
@@ -50,6 +51,11 @@ namespace Michi.Checks
             var farRoute=isolation.CaptureSave();var farSector=farRoute.Sectors[0];farSector.DemandRoute=new[]{new SavedEdge{A=farSector.East,B=2},new SavedEdge{A=2,B=farSector.District}};badRejected=false;try{NetworkSimulation.RestoreSave(farRoute);}catch(ArgumentException){badRejected=true;}Check(badRejected,"impossible saved route lengths rejected");
             var badRoute=isolation.CaptureSave();badRoute.Sectors[0].DemandRoute[0].A=0;badRejected=false;try{NetworkSimulation.RestoreSave(badRoute);}catch(ArgumentException){badRejected=true;}Check(badRejected,"broken demand-route chain rejected");
             var classic=new NetworkSimulation(CityMap.Generate(42),true);classic.LoadSolution();Stable(classic);foreach(var direction in new[]{ExpansionDirection.East,ExpansionDirection.West}){Check(classic.Expand(direction),"classic saves support lateral growth");classic.LoadSolution();Stable(classic);}
+            var constrained=new NetworkSimulation(CityMap.Generate(10),true,1);constrained.LoadSolution();Stable(constrained);
+            var southern=constrained.ExpansionOffers[1];
+            Check(southern.Available&&southern.Role==7&&southern.DemandProfile==DistrictDemandProfile.Standard&&southern.Demand==7,"an infeasible heavy industry is replaced by a feasible standard contract");
+            Check(constrained.Expand(ExpansionDirection.South),"standard fallback can be opened");
+            constrained.LoadSolution();Check(constrained.ReferenceValid,"fallback reference respects limits");Stable(constrained);
             var legacy=new NetworkSimulation(CityMap.Generate(291026),true);legacy.LoadSolution();Stable(legacy);legacy.Expand(false);legacy.LoadSolution();var old=legacy.CaptureSave();old.Sectors[0].Direction=ExpansionDirection.None;old.Sectors[0].Obstacles=null;old.Sectors[0].DemandRoute=null;
             var migrated=NetworkSimulation.RestoreSave(old);Check(migrated.Sectors[0].Direction==ExpansionDirection.South,"missing legacy direction infers original south bool");Check(migrated.Sectors[0].Obstacles.Count==0,"legacy map gains no hidden barriers");
             var invalid=migrated.CaptureSave();invalid.Sectors[0].Direction=(ExpansionDirection)99;bool rejected=false;try{NetworkSimulation.RestoreSave(invalid);}catch(ArgumentException){rejected=true;}Check(rejected,"invalid saved directions rejected");

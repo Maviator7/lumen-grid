@@ -6,7 +6,7 @@ namespace Michi.Runtime
         public bool TitleScreen {get;private set;}=true;
         public bool HasSession {get;private set;}
         public bool TitleGuideConfirm;
-        public void OpenTitle(){View.StopRotation();SaveCity(false);TitleScreen=true;TitleGuideConfirm=false;MapPrompt=GuidePrompt=false;Expansion.Cancel();Reset.Cancel();pointer.Cancel();View.PendingNode=-1;accumulator=0;}
+        public void OpenTitle(){ClearDiagnostic();View.StopRotation();SaveCity(false);TitleScreen=true;TitleGuideConfirm=false;MapPrompt=GuidePrompt=false;Expansion.Cancel();Reset.Cancel();pointer.Cancel();View.PendingNode=-1;accumulator=0;}
         public void ContinueCity(){if(!HasSession)return;TitleScreen=false;ignoreConfirmFrame=Time.frameCount+1;pointer.Cancel();}
         public void NewCityFromTitle(){ignoreConfirmFrame=Time.frameCount+1;MapPrompt=true;SeedFieldFocus=true;SeedError="";TitleGuideConfirm=false;}
         public void GuideFromTitle(){if(HasSession)TitleGuideConfirm=true;else RestartTutorial();}

@@ -4,7 +4,7 @@ namespace Michi.Runtime
     public sealed partial class NetworkGame
     {
         public bool CommunicationPrompt,CommunicationChoice;
-        bool CanChangeCommunication {get{return !TitleScreen&&!Tutorial.Active&&!GuidePrompt&&!MapPrompt&&!ResetPrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt;}}
+        bool CanChangeCommunication {get{return !TitleScreen&&!Tutorial.Active&&!GuidePrompt&&!MapPrompt&&!ResetPrompt&&!SavePrompt&&!ExpansionPrompt&&!CommunicationPrompt&&!FeedbackModal;}}
         public void OpenCommunicationMenu()
         {
             if(!CanChangeCommunication||!Simulation.Continuous)return;

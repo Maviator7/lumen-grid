@@ -7,14 +7,22 @@ namespace Michi.Core
         bool batteryAllocationValid;
         double batteryAllocationHorizon;
         double[] batteryPowerInputs,batteryExpectedEnergy;
+        const int PowerInputsPerNode=5;
         double PowerInput(int index)
         {
-            var n=Nodes[index/4];switch(index%4){case 0:return n.PowerDemand;case 1:return n.PowerSupply;case 2:return n.Capacity;default:return (int)n.Kind;}
+            var n=Nodes[index/PowerInputsPerNode];
+            switch(index%PowerInputsPerNode){
+                case 0:return n.PowerDemand;
+                case 1:return n.PowerSupply;
+                case 2:return n.Capacity;
+                case 3:return (int)n.Kind;
+                default:return (int)GetRelayMode(n.Id);
+            }
         }
         void RememberBatteryAllocation(double dt)
         {
             batteryAllocationHorizon=dt>0?dt:1.0/60;
-            int count=Nodes.Length*4;if(batteryPowerInputs==null||batteryPowerInputs.Length!=count)batteryPowerInputs=new double[count];
+            int count=Nodes.Length*PowerInputsPerNode;if(batteryPowerInputs==null||batteryPowerInputs.Length!=count)batteryPowerInputs=new double[count];
             for(int i=0;i<count;i++)batteryPowerInputs[i]=PowerInput(i);
             if(batteryExpectedEnergy==null||batteryExpectedEnergy.Length!=batteries.Count)batteryExpectedEnergy=new double[batteries.Count];
             for(int i=0;i<batteries.Count;i++)batteryExpectedEnergy[i]=batteries[i].Energy;
@@ -22,7 +30,7 @@ namespace Michi.Core
         }
         bool CanReuseBatteryAllocation(double dt)
         {
-            if(!batteryAllocationValid||batteryAllocationHorizon!=dt||batteryPowerInputs.Length!=Nodes.Length*4||batteryExpectedEnergy.Length!=batteries.Count)return false;
+            if(!batteryAllocationValid||batteryAllocationHorizon!=dt||batteryPowerInputs.Length!=Nodes.Length*PowerInputsPerNode||batteryExpectedEnergy.Length!=batteries.Count)return false;
             for(int i=0;i<batteryPowerInputs.Length;i++)if(batteryPowerInputs[i]!=PowerInput(i))return false;
             // Newly charged energy may open a bypass around a reactor-route bottleneck.
             // While any power consumer is short, reevaluate charging allocations on the next tick.

@@ -9,10 +9,10 @@ namespace Michi.Core
         {
             for(int attempt=0;attempt<4;attempt++){
                 var demand=new double[Nodes.Length];
-                foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.District){var visited=new HashSet<int>();foreach(var path in SourcePaths(n,SignalKind.Data))foreach(int id in path)visited.Add(id);foreach(int id in visited)demand[id]+=DistrictPeakDataRate(n.Role);}
+                foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.District){var visited=new HashSet<int>();foreach(var path in SourcePaths(n,SignalKind.Data))foreach(int id in path)visited.Add(id);foreach(int id in visited)demand[id]+=DistrictReferenceDataRate(n);}
                 int from=-1,to=-1;
                 foreach(var flow in powerFlows.Values){var path=flow.Path;for(int i=1;i<path.Count-1;i++){
-                    var n=Nodes[path[i]];if(n.Kind!=NetworkNodeKind.Relay||n.PowerLoad+demand[n.Id]<=n.Capacity+.00001)continue;
+                    var n=Nodes[path[i]];if(n.Kind!=NetworkNodeKind.Relay||demand[n.Id]<=NodeDataRate(n.Id)+.00001)continue;
                     int a=path[i-1],b=path[i+1];if(Links.ContainsKey(EdgeId(a,b))||PreviewConnect(a,b,LinkKind.PowerOnly).Error!=NetworkEditError.None)continue;
                     from=a;to=b;break;
                 }if(from>=0)break;}

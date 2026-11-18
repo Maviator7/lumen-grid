@@ -31,10 +31,11 @@ namespace Michi.Core
             foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.Relay&&ClearLateralParent(n))frontier=east?Math.Max(frontier,n.X):Math.Min(frontier,n.X);
             int lower=-1,upper=-1;foreach(var n in Nodes)if(n.Kind==NetworkNodeKind.Relay&&ClearLateralParent(n)&&Math.Abs(n.X-frontier)<4.5){if(lower<0||n.Z<Nodes[lower].Z)lower=n.Id;if(upper<0||n.Z>Nodes[upper].Z)upper=n.Id;}
             if(lower<0||upper<0)return new ExpansionOffer{Direction=direction,UnavailableReason="外縁の中継に安全な進入路がありません。",Title=DirectionName(direction)+"の地区"};
-            var rng=new CityRandom(unchecked(Map.Seed+ExpansionCount*7919+(east?809:1201)));int role=7+rng.Int(3);
+            int role=ExpansionRole(direction);
             double x=outer+sign*5.5,z=(Nodes[lower].Z+Nodes[upper].Z)/2;
             var terrain=((unchecked(Map.Seed+ExpansionCount)+(east?0:1))&1)==0?SectorTerrain.Dense:SectorTerrain.Detour;
-            var offer=new ExpansionOffer{Direction=direction,Terrain=terrain,Z=z,Role=role,Demand=ModernRules?DistrictBasePower(role):role==7?6:role==8?3:4,Title=DirectionName(direction)+"の"+(role==7?"工業地区":role==8?"住宅地区":"医療地区"),WestParent=lower,EastParent=upper,Utilities=ExpansionCount%2==1,DistrictPoint=new CityPoint(x+sign*6.5,z+1),ReactorPoint=new CityPoint(x-sign*2,z-3.8),DataPoint=new CityPoint(x-sign*2,z+3.8)};
+            var offer=new ExpansionOffer{Direction=direction,Terrain=terrain,Z=z,Role=role,WestParent=lower,EastParent=upper,Utilities=ExpansionCount%2==1,DistrictPoint=new CityPoint(x+sign*6.5,z+1),ReactorPoint=new CityPoint(x-sign*2,z-3.8),DataPoint=new CityPoint(x-sign*2,z+3.8)};
+            ConfigureExpansionDemand(offer);
             if(terrain==SectorTerrain.Dense){
                 offer.Obstacles.Add(new CityObstacle{X=x+sign*2.5,Z=z-2,Width=2.2,Depth=2.8});
                 offer.Obstacles.Add(new CityObstacle{X=x+sign*2.5,Z=z+2.9,Width=2.2,Depth=2.4});
@@ -46,11 +47,7 @@ namespace Michi.Core
             offer.WestRoute=PlanLateralRoute(lower,new CityPoint(x,z-3));offer.EastRoute=PlanLateralRoute(upper,new CityPoint(x,z+3),offer.WestRoute);
             if(offer.WestRoute==null||offer.EastRoute==null){offer.UnavailableReason="建設不可範囲を避ける進入路がありません。";return offer;}
             offer.CableGrant=36+CorridorLength(lower,offer.WestRoute)+CorridorLength(upper,offer.EastRoute);
-            for(int attempt=0;attempt<2;attempt++){
-                var test=PlanningClone();test.CommitExpansion(offer);test.LoadSolution();
-                if(test.ValidateExpansionOperation(10800)){offer.Available=true;break;}
-                offer.Utilities=true;
-            }
+            ValidateExpansionOffer(offer,10800);
             return offer;
         }
         // Visibility vertices sit beyond the inclusive padded obstacle boundary.
@@ -77,7 +74,7 @@ namespace Michi.Core
             expansionCable+=offer.CableGrant;ExpansionCount++;string prefix=DirectionName(offer.Direction)+ExpansionCount;
             var sector=new CitySector{GrowthDirection=offer.Direction,Terrain=offer.Terrain,Z=offer.Z};
             sector.West=AddCorridor(offer.WestParent,offer.WestRoute,sector,prefix+"A",true);sector.East=AddCorridor(offer.EastParent,offer.EastRoute,sector,prefix+"B",true);
-            var d=offer.DistrictPoint;sector.District=AppendNode(prefix+".D",prefix+(offer.Role==7?" 工業区":offer.Role==8?" 居住区":" 医療区"),d.X,d.Z,NetworkNodeKind.District,offer.Role,offer.Demand);
+            sector.District=AppendExpansionDistrict(prefix,offer.DistrictPoint,offer);
             int last=sector.East;for(int i=0;i<offer.DistrictRoute.Count;i++){
                 var p=offer.DistrictRoute[i];int next=i==offer.DistrictRoute.Count-1?sector.District:AppendNode(prefix+".L"+i,prefix+" 通路中継"+(i+1),p.X,p.Z,NetworkNodeKind.Relay,2);
                 sector.DemandRoute.Add(new[]{last,next});last=next;

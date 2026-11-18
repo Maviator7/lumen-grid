@@ -34,7 +34,7 @@ namespace Michi.Core
             if(!Continuous)return;
             if(node.Kind==NetworkNodeKind.Relay)node.Capacity=Math.Max(18,node.Capacity);
             if(node.Kind==NetworkNodeKind.DataCore)node.DataSupply=7;
-            if(node.Kind==NetworkNodeKind.District){node.DataDemand=DistrictDataRate(node.Role);if(ModernRules)node.PowerDemand=DistrictPower(node);}
+            if(node.Kind==NetworkNodeKind.District){node.DataDemand=DistrictBaseDataRate(node.Role,node.DemandProfile);if(ModernRules)node.PowerDemand=DistrictPower(node);}
         }
         void ResetDataSupply()
         {
@@ -54,8 +54,23 @@ namespace Michi.Core
             int count=waitingData.Count;for(int i=0;i<count;i++){
                 var request=waitingData.Dequeue();if(Time-request.Born>RequestDeadline(request.Destination)){FailRequest(request);continue;}
                 var paths=SourcePaths(Nodes[request.Destination],SignalKind.Data);if(paths.Count==0){FailRequest(request);continue;}
-                List<int> chosen=null;foreach(var path in paths)if(Nodes[path[0]].SourceCredit>=1-.0000001&&Time-request.Born+TransitTime(path,dt)<=RequestDeadline(request.Destination)){chosen=path;break;}
-                if(chosen==null){waitingData.Enqueue(request);continue;}
+                List<int> chosen=null, timely=null;foreach(var path in paths){
+                    if(Time-request.Born+TransitTime(path,dt)>RequestDeadline(request.Destination))continue;
+                    if(timely==null)timely=path;
+                    if(Nodes[path[0]].SourceCredit>=1-.0000001){chosen=path;break;}
+                }
+                if(chosen==null){
+                    if (Time - request.Born > .45)
+                    {
+                        // A fresh request that fits is held by source throughput, even if this older one no longer fits.
+                        if (timely == null) foreach (var path in paths)
+                            if (TransitTime(path,dt) <= RequestDeadline(request.Destination)) { timely = path; break; }
+                        ObserveDataBlock(request.Destination, timely == null ? DataBlock.TransitTime : DataBlock.Source,
+                            timely == null ? request.Destination : timely[0], -1, timely);
+                    }
+                    waitingData.Enqueue(request);continue;
+                }
+                lastDataRoutes[request.Destination]=chosen;
                 var source=Nodes[chosen[0]];source.SourceCredit=Math.Max(0,source.SourceCredit-1);source.DataDispatched++;
                 Packets.Add(new DataPacket{Id=serial++,Destination=request.Destination,Path=chosen,Born=request.Born});
             }

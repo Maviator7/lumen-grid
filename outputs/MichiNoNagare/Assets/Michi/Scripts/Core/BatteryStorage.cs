@@ -39,7 +39,7 @@ namespace Michi.Core
         // Amount is accepted rate; energy is integrated once, only at the end of a positive simulation step.
         double StoragePathRoom(List<int> path,double amount)
         {
-            foreach(int id in path)if(Nodes[id].Kind==NetworkNodeKind.Relay)amount=Math.Min(amount,Nodes[id].Capacity-Nodes[id].PowerLoad);
+            foreach(int id in path)if(Nodes[id].Kind==NetworkNodeKind.Relay)amount=Math.Min(amount,RelayPowerCapacity(id)-Nodes[id].PowerLoad);
             for(int i=1;i<path.Count;i++)amount=Math.Min(amount,LinkCapacity-Links[EdgeId(path[i-1],path[i])].PowerLoad);
             return Math.Max(0,amount);
         }

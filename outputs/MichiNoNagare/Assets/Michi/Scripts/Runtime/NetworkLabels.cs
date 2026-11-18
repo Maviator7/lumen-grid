@@ -29,14 +29,15 @@ namespace Michi.Runtime
             var safe=new Rect(26,137,width-52,height-FooterHeight-159);
             var used=new List<Rect>{guideBounds};
             if(expansionNoticeBounds.width>0)used.Add(expansionNoticeBounds);
+            if(diagnosticMarkerBounds.width>0)used.Add(diagnosticMarkerBounds);
             if(game.Tutorial.ShowsHubDetails||game.View.SelectedNode>=0||game.SelectedLink>=0)used.Add(new Rect(width-295,143,280,height-FooterHeight-165));
             var nodes=new List<GridNode>(game.Simulation.Nodes);nodes.Sort((a,b)=>{int p=LabelPriority(a).CompareTo(LabelPriority(b));return p!=0?p:a.Id.CompareTo(b.Id);});
             foreach(var n in nodes){
                 var world=game.View.Camera.WorldToScreenPoint(game.View.NodePoint(n.Id));if(world.z<0)continue;
                 var point=new Vector2(world.x/scale,(Screen.height-world.y)/scale);if(point.x<0||point.x>width||point.y<124||point.y>height-FooterHeight-6)continue;
                 string issue=DistrictIssue(n),name=RoleName(n),detail="";bool focused=LabelFocused(n);
-                if(issue.Length>0)detail="! "+issue;
-                else if(game.Simulation.BatteryAt(n.Id)!=null)detail=game.Simulation.BatteryAt(n.Id).Energy.ToString("0")+" / 120 MJ";
+                if(issue.Length>0){if(focused)detail="! "+issue;else name="! "+name;}
+                else if(focused&&game.Simulation.BatteryAt(n.Id)!=null)detail=game.Simulation.BatteryAt(n.Id).Energy.ToString("0")+" / 120 MJ";
                 else if(focused&&game.Simulation.ModernRules&&n.Kind==NetworkNodeKind.District)detail="電力 "+n.PowerDemand+" MW / 通信期限 "+game.Simulation.RequestDeadline(n.Id).ToString("0.0")+"秒";
                 else if(focused)detail=game.Simulation.Continuous&&n.Kind==NetworkNodeKind.DataCore?(game.Simulation.DataSourceConnected(n.Id)?"送信 "+n.DataOutputRate.ToString("0.0")+" / "+n.DataSupply.ToString("0.0")+" 件/s":"未接続 / 出力 "+n.DataSupply.ToString("0.0")+" 件/s"):Purpose(n);
                 float w=Mathf.Clamp(Mathf.Max(body.CalcSize(new GUIContent(name)).x,tiny.CalcSize(new GUIContent(detail)).x)+10,72,250),h=detail.Length>0?60:32;
@@ -49,7 +50,7 @@ namespace Michi.Runtime
                 }
                 // A crowded overview omits ordinary names; selecting or hovering gives them priority.
                 if(slot<0)continue;
-                Color c=FacilityColor(n);
+                Color c=issue.Length>0?Amber:FacilityColor(n);
                 if(slot>0)Line(point,new Vector2(Mathf.Clamp(point.x,placed.x,placed.xMax),Mathf.Clamp(point.y,placed.y,placed.yMax)),new Color(c.r,c.g,c.b,.35f));
                 Text(placed.x+1.5f,placed.y+1.5f,w,32,name,body,new Color(0,0,0,.9f));Text(placed.x,placed.y,w,32,name,body,c);
                 if(detail.Length>0){Text(placed.x+1.5f,placed.y+33.5f,w,26,detail,tiny,new Color(0,0,0,.9f));Text(placed.x,placed.y+32,w,26,detail,tiny,issue.Length>0?Amber:Muted);}
